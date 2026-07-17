@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-security-scanner"
+version = "0.1.0"
+description = "Static security scanner for MCP (Model Context Protocol) server source code, with findings mapped to Google SAIF risk categories."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Jake Spillers" }]
+
+[project.scripts]
+mcp-scanner = "mcp_scanner.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
