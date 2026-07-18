@@ -29,6 +29,16 @@ from .rules import RULES
 TOOL_DECORATOR_NAMES = {"tool"}
 RESOURCE_DECORATOR_NAMES = {"resource"}
 
+# FastMCP also supports registering tools/resources programmatically instead
+# of via decorator -- e.g. `self.mcp.add_tool(self.my_tool)` -- which is the
+# shape real servers use when FastMCP is wrapped inside a custom class
+# (an SSE-transport server class, a plugin system, etc.) rather than
+# decorated at module scope. The decorator-only version of this analyzer
+# silently found nothing on servers built this way, which reads as "clean"
+# when it actually means "didn't look." See _programmatic_registrations().
+TOOL_REGISTER_METHODS = {"add_tool"}
+RESOURCE_REGISTER_METHODS = {"add_resource"}
+
 SHELL_SINKS = {
     ("subprocess", "run"),
     ("subprocess", "call"),
@@ -124,10 +134,67 @@ def _has_shell_true(call_node):
     return False
 
 
+def _collect_functions_by_name(tree):
+    """Map simple function name -> its FunctionDef/AsyncFunctionDef node.
+
+    Covers both module-level functions and methods defined inside a class,
+    since a server that wraps FastMCP in a custom class typically defines
+    tool handlers as methods and registers them programmatically in
+    __init__ rather than decorating them in place. If a name is reused,
+    the last definition wins -- an acceptable approximation for a
+    best-effort static scan.
+    """
+    by_name = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            by_name[node.name] = node
+    return by_name
+
+
+def _programmatic_registrations(tree, functions_by_name):
+    """Find tools/resources registered via `mcp.add_tool(fn)` /
+    `server.add_resource(fn)` calls instead of a decorator.
+
+    Resolution is deliberately simple, matching this project's
+    lightweight/explainable-over-exhaustive philosophy: the first
+    positional argument must be a bare name (`add_tool(my_tool)`) or a
+    `self.`-qualified attribute (`add_tool(self.my_tool)`) matching a known
+    function or method name. A variable holding a function reference
+    assigned earlier, a lambda, or a dynamically built name is out of scope
+    for this pass -- those would need real dataflow tracking to resolve
+    reliably, and a wrong guess there is worse than a known gap.
+    """
+    registrations = []  # list of (function_node, "tool" | "resource")
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not isinstance(func, ast.Attribute):
+            continue
+        method = func.attr
+        is_tool_reg = method in TOOL_REGISTER_METHODS
+        is_resource_reg = method in RESOURCE_REGISTER_METHODS
+        if not (is_tool_reg or is_resource_reg):
+            continue
+        if not node.args:
+            continue
+        target = node.args[0]
+        name = None
+        if isinstance(target, ast.Name):
+            name = target.id
+        elif isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "self":
+            name = target.attr
+        if name and name in functions_by_name:
+            registrations.append((functions_by_name[name], "tool" if is_tool_reg else "resource"))
+    return registrations
+
+
 class MCPAnalyzer(ast.NodeVisitor):
     def __init__(self, source: str):
         self.source = source
         self.findings = []
+        self._processed_tool_ids = set()
+        self._processed_resource_ids = set()
 
     def visit_FunctionDef(self, node):
         decorators = _decorator_names(node)
@@ -136,14 +203,44 @@ class MCPAnalyzer(ast.NodeVisitor):
 
         if is_resource:
             self._check_resource(node)
+            self._processed_resource_ids.add(id(node))
 
         if is_tool:
             tainted = {arg.arg for arg in node.args.args if arg.arg != "self"}
             self._check_tool_body(node, tainted)
+            self._processed_tool_ids.add(id(node))
 
         self.generic_visit(node)
 
     visit_AsyncFunctionDef = visit_FunctionDef
+
+    def run_programmatic_registrations(self, tree):
+        """Second pass: catch tools/resources registered via add_tool()/
+        add_resource() instead of a decorator. Runs after the decorator
+        pass (visit) so id()-based dedup against _processed_*_ids works
+        regardless of call order.
+        """
+        functions_by_name = _collect_functions_by_name(tree)
+        for node, kind in _programmatic_registrations(tree, functions_by_name):
+            if kind == "tool" and id(node) not in self._processed_tool_ids:
+                before = len(self.findings)
+                tainted = {arg.arg for arg in node.args.args if arg.arg != "self"}
+                self._check_tool_body(node, tainted)
+                self._processed_tool_ids.add(id(node))
+                self._tag_programmatic(before)
+            elif kind == "resource" and id(node) not in self._processed_resource_ids:
+                before = len(self.findings)
+                self._check_resource(node)
+                self._processed_resource_ids.add(id(node))
+                self._tag_programmatic(before)
+
+    def _tag_programmatic(self, findings_before_count):
+        """Mark findings from this pass as coming from programmatic
+        registration rather than a decorator, so a report reader knows why
+        this one didn't show up next to an @mcp.tool() line.
+        """
+        for f in self.findings[findings_before_count:]:
+            f.detail = f"[registered via add_tool()/add_resource(), no decorator] {f.detail}"
 
     def _check_resource(self, node):
         uris = _decorator_string_args(node) + [node.name]
@@ -189,21 +286,33 @@ class MCPAnalyzer(ast.NodeVisitor):
     def _apply_validation_guards(self, node, tainted):
         """Best-effort recognition of guard-clause validation.
 
-        If a name (or a name derived from it) is referenced in the test of an
-        `if` block whose body raises or returns -- the common
-        "if not valid(x): raise/return" pattern -- treat that name as
-        validated for the rest of the function. This is deliberately
-        approximate: it doesn't reason about which branch actually executes,
-        only that a validation check exists somewhere against the value
-        before it's used. That's enough to avoid flagging clearly-guarded
-        code without requiring full control-flow analysis.
+        Recognizes only the classic single-sided guard-clause shape --
+        `if <condition on tainted value>: raise/return`, with no `else` --
+        and treats the tested name as validated for the rest of the
+        function. This is deliberately approximate: it doesn't reason about
+        which branch actually executes, only that a rejecting check exists
+        against the value before it's used.
+
+        Requiring `stmt.orelse` to be empty matters: an `if/else` where
+        *both* branches simply return their own computed result (an
+        ordinary branching computation, not a rejection) must NOT be
+        treated as validation -- the tainted value is still used,
+        unsanitized, down either branch. An earlier version of this check
+        used `ast.walk(stmt)` over the whole if/else, which matched that
+        shape and produced a real false negative: `if x.endswith(".json"):
+        <use x> return ... else: <use x> return ...` was silently treated
+        as "x is now validated" even though neither branch validates
+        anything. Checking only `stmt.body` (not `stmt.orelse`) for the
+        early exit, and requiring no `orelse` at all, avoids that.
         """
         validated = set()
         for stmt in ast.walk(node):
             if isinstance(stmt, ast.If):
+                if stmt.orelse:
+                    continue
                 touches_tainted = _names_in_subtree(stmt.test, tainted)
                 exits_early = any(
-                    isinstance(s, (ast.Raise, ast.Return)) for s in ast.walk(stmt)
+                    isinstance(s, (ast.Raise, ast.Return)) for s in stmt.body
                 )
                 if touches_tainted and exits_early:
                     for n in ast.walk(stmt.test):
@@ -310,6 +419,7 @@ def scan_file(path: str):
 
     analyzer = MCPAnalyzer(source)
     analyzer.visit(tree)
+    analyzer.run_programmatic_registrations(tree)
     findings = analyzer.findings + scan_secrets(source, path)
     findings.sort(key=lambda f: f.line)
     return findings, []
