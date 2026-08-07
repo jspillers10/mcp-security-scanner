@@ -14,6 +14,14 @@ Approach
 4. For resource functions, flag names that look like debug/log/admin
    endpoints regardless of taint, since the risk is exposure of the
    resource itself.
+5. One-hop cross-file resolution: if a tainted tool parameter is passed
+   into a call to a function imported from a sibling file in the same
+   local package (`import x`, `from . import x`, `from .x import y`, or a
+   flat `from x import y` where `x.py` sits next to the file being
+   scanned), the callee's matching parameter is treated as tainted too, and
+   its body is checked for sinks the same way a tool body is. This stops
+   after exactly one hop -- a sink two calls away from the tool parameter
+   is out of scope. See _check_cross_file_calls() / _check_one_hop_function().
 
 This is a lightweight, best-effort static analysis -- it favors clear,
 explainable findings over exhaustive dataflow precision. False negatives are
@@ -22,6 +30,7 @@ that re-implements sanitization in a way the analyzer doesn't recognize.
 """
 
 import ast
+import os
 from dataclasses import dataclass, field
 
 from .rules import RULES
@@ -74,6 +83,13 @@ class Finding:
     line: int
     function_name: str
     detail: str
+    # None for an ordinary in-file finding. Set to the callee's absolute
+    # file path for a one-hop cross-file finding, since `line` then refers
+    # to a line in a *different* file from the one being scanned -- see
+    # _check_one_hop_function(). report.py surfaces this explicitly rather
+    # than silently reporting a line number that doesn't match the file the
+    # user asked to scan.
+    file: str = None
     severity: str = field(init=False)
     saif_category: str = field(init=False)
     saif_code: str = field(init=False)
@@ -151,6 +167,69 @@ def _collect_functions_by_name(tree):
     return by_name
 
 
+def _collect_local_imports(tree, base_dir):
+    """Return (module_alias -> file_path, imported_name -> (file_path, real_name))
+    for imports in `tree` that resolve to a sibling .py file in `base_dir`.
+
+    This is the only shape the one-hop resolver understands: a module or
+    name imported from a file that actually exists next to the file being
+    scanned. Third-party/stdlib imports, and imports that don't resolve to
+    an existing local file, are left alone -- a call through one of those
+    is out of scope for this pass, not an error. Covers:
+      - `import helper`               (module_alias) if helper.py exists
+      - `from . import helper`        (module_alias) if helper.py exists
+      - `from .helper import fn`      (imported_name) -- relative
+      - `from helper import fn`       (imported_name) -- flat/non-relative,
+        common in single-directory MCP server layouts that aren't set up
+        as an installable package
+    """
+    module_alias_to_path = {}
+    name_to_target = {}
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                local_name = alias.asname or alias.name
+                candidate = os.path.join(base_dir, alias.name.split(".")[-1] + ".py")
+                if os.path.isfile(candidate):
+                    module_alias_to_path[local_name] = candidate
+
+        elif isinstance(node, ast.ImportFrom):
+            if node.level == 0:
+                if not node.module:
+                    continue
+                mod_file = os.path.join(base_dir, node.module.split(".")[-1] + ".py")
+                if not os.path.isfile(mod_file):
+                    continue
+                for alias in node.names:
+                    local_name = alias.asname or alias.name
+                    name_to_target[local_name] = (mod_file, alias.name)
+            else:
+                # node.level >= 1: `from . import x` or `from .x import y`.
+                # Only level 1 (same directory as the scanned file) is
+                # handled -- `from .. import x` would need to walk up
+                # parent packages, out of scope for a one-hop pass.
+                if node.level != 1:
+                    continue
+                if node.module:
+                    mod_file = os.path.join(base_dir, node.module.split(".")[-1] + ".py")
+                    if not os.path.isfile(mod_file):
+                        continue
+                    for alias in node.names:
+                        local_name = alias.asname or alias.name
+                        name_to_target[local_name] = (mod_file, alias.name)
+                else:
+                    # `from . import helper` -- each imported name is itself
+                    # a sibling module, not a function inside one.
+                    for alias in node.names:
+                        local_name = alias.asname or alias.name
+                        candidate = os.path.join(base_dir, alias.name + ".py")
+                        if os.path.isfile(candidate):
+                            module_alias_to_path[local_name] = candidate
+
+    return module_alias_to_path, name_to_target
+
+
 def _programmatic_registrations(tree, functions_by_name):
     """Find tools/resources registered via `mcp.add_tool(fn)` /
     `server.add_resource(fn)` calls instead of a decorator.
@@ -189,12 +268,93 @@ def _programmatic_registrations(tree, functions_by_name):
     return registrations
 
 
+def _find_sink_findings(node, tainted):
+    """Walk `node`'s body for dangerous sink calls reachable from `tainted`
+    names, returning (findings, sensitive_capabilities).
+
+    Shared by the primary tool-body check and the one-hop cross-file check
+    (_check_one_hop_function) so both use identical sink logic -- the
+    caller decides what to do with the capability set, since only the
+    primary tool aggregates it into an MCP006 finding.
+    """
+    findings = []
+    sensitive_capabilities = set()
+
+    for child in ast.walk(node):
+        if not isinstance(child, ast.Call):
+            continue
+        module, attr = _call_target(child)
+        if (module, attr) in SHELL_SINKS:
+            sensitive_capabilities.add("process")
+            tainted_reaches = any(_names_in_subtree(a, tainted) for a in child.args) or any(
+                _names_in_subtree(kw.value, tainted) for kw in child.keywords
+            )
+            always_shell = (module, attr) in {("os", "system"), ("os", "popen")}
+            shell_true = _has_shell_true(child)
+            # subprocess.* with an argv list and shell not set to True is the
+            # standard safe pattern -- the shell never parses the string, so
+            # metacharacters in a tainted argument aren't executed. Only flag
+            # when a real shell is actually going to interpret the string.
+            if tainted_reaches and (always_shell or shell_true):
+                detail = f"tainted parameter reaches {module}.{attr}("
+                detail += "shell=True)" if shell_true else ")"
+                findings.append(Finding("MCP001", child.lineno, node.name, detail))
+        elif (module, attr) in EVAL_SINKS:
+            tainted_here = any(_names_in_subtree(a, tainted) for a in child.args)
+            findings.append(
+                Finding(
+                    "MCP003",
+                    child.lineno,
+                    node.name,
+                    f"{attr}() call" + (" reachable from tool parameter" if tainted_here else " present in tool function"),
+                )
+            )
+        elif (module, attr) in FILE_SINKS:
+            sensitive_capabilities.add("file")
+            if child.args and _names_in_subtree(child.args[0], tainted):
+                findings.append(
+                    Finding(
+                        "MCP002",
+                        child.lineno,
+                        node.name,
+                        "open() path built from tainted tool parameter",
+                    )
+                )
+        elif (module, attr) in DESERIALIZE_SINKS:
+            findings.append(
+                Finding(
+                    "MCP007",
+                    child.lineno,
+                    node.name,
+                    f"{module}.{attr}() call on data that may be untrusted",
+                )
+            )
+        elif module in {"requests", "httpx", "urllib", "aiohttp", "socket"}:
+            sensitive_capabilities.add("network")
+
+    return findings, sensitive_capabilities
+
+
 class MCPAnalyzer(ast.NodeVisitor):
-    def __init__(self, source: str):
+    def __init__(self, source: str, file_path: str = None):
         self.source = source
+        # Needed to resolve local imports relative to this file's directory.
+        # Without it (e.g. a caller that hands MCPAnalyzer an inline AST
+        # rather than a real file), one-hop cross-file resolution simply
+        # doesn't run -- see _check_cross_file_calls().
+        self.file_path = file_path
         self.findings = []
         self._processed_tool_ids = set()
         self._processed_resource_ids = set()
+        self._own_tree = None
+        self._local_imports = None
+        self._local_from_imports = None
+        self._file_cache = {}
+        self._hop_seen = set()
+
+    def visit_Module(self, node):
+        self._own_tree = node
+        self.generic_visit(node)
 
     def visit_FunctionDef(self, node):
         decorators = _decorator_names(node)
@@ -323,61 +483,9 @@ class MCPAnalyzer(ast.NodeVisitor):
     def _check_tool_body(self, node, tainted):
         tainted = self._propagate_taint(node, tainted)
         tainted = self._apply_validation_guards(node, tainted)
-        sensitive_capabilities = set()
 
-        for child in ast.walk(node):
-            if not isinstance(child, ast.Call):
-                continue
-            module, attr = _call_target(child)
-            if (module, attr) in SHELL_SINKS:
-                sensitive_capabilities.add("process")
-                tainted_reaches = any(_names_in_subtree(a, tainted) for a in child.args) or any(
-                    _names_in_subtree(kw.value, tainted) for kw in child.keywords
-                )
-                always_shell = (module, attr) in {("os", "system"), ("os", "popen")}
-                shell_true = _has_shell_true(child)
-                # subprocess.* with an argv list and shell not set to True is the
-                # standard safe pattern -- the shell never parses the string, so
-                # metacharacters in a tainted argument aren't executed. Only flag
-                # when a real shell is actually going to interpret the string.
-                if tainted_reaches and (always_shell or shell_true):
-                    detail = f"tainted parameter reaches {module}.{attr}("
-                    detail += "shell=True)" if shell_true else ")"
-                    self.findings.append(
-                        Finding("MCP001", child.lineno, node.name, detail)
-                    )
-            elif (module, attr) in EVAL_SINKS:
-                tainted_here = any(_names_in_subtree(a, tainted) for a in child.args)
-                self.findings.append(
-                    Finding(
-                        "MCP003",
-                        child.lineno,
-                        node.name,
-                        f"{attr}() call" + (" reachable from tool parameter" if tainted_here else " present in tool function"),
-                    )
-                )
-            elif (module, attr) in FILE_SINKS:
-                sensitive_capabilities.add("file")
-                if child.args and _names_in_subtree(child.args[0], tainted):
-                    self.findings.append(
-                        Finding(
-                            "MCP002",
-                            child.lineno,
-                            node.name,
-                            "open() path built from tainted tool parameter",
-                        )
-                    )
-            elif (module, attr) in DESERIALIZE_SINKS:
-                self.findings.append(
-                    Finding(
-                        "MCP007",
-                        child.lineno,
-                        node.name,
-                        f"{module}.{attr}() call on data that may be untrusted",
-                    )
-                )
-            elif module in {"requests", "httpx", "urllib", "aiohttp", "socket"}:
-                sensitive_capabilities.add("network")
+        findings, sensitive_capabilities = _find_sink_findings(node, tainted)
+        self.findings.extend(findings)
 
         if len(sensitive_capabilities) >= 2:
             self.findings.append(
@@ -388,6 +496,111 @@ class MCPAnalyzer(ast.NodeVisitor):
                     f"tool combines capabilities: {', '.join(sorted(sensitive_capabilities))}",
                 )
             )
+
+        self._check_cross_file_calls(node, tainted)
+
+    def _ensure_local_imports(self):
+        if self._local_imports is not None:
+            return
+        tree = self._own_tree
+        if tree is None:
+            # Only reached if run_programmatic_registrations() is called
+            # without a prior visit() pass -- fall back to re-parsing.
+            tree = ast.parse(self.source)
+        base_dir = os.path.dirname(os.path.abspath(self.file_path))
+        self._local_imports, self._local_from_imports = _collect_local_imports(tree, base_dir)
+
+    def _resolve_function_in_file(self, target_path, func_name):
+        target_path = os.path.abspath(target_path)
+        if target_path not in self._file_cache:
+            try:
+                with open(target_path, "r", encoding="utf-8") as f:
+                    target_source = f.read()
+                self._file_cache[target_path] = ast.parse(target_source, filename=target_path)
+            except (OSError, SyntaxError):
+                self._file_cache[target_path] = None
+        target_tree = self._file_cache[target_path]
+        if target_tree is None:
+            return None
+        callee_node = _collect_functions_by_name(target_tree).get(func_name)
+        if callee_node is None:
+            return None
+        return target_path, callee_node
+
+    def _resolve_local_call(self, call_node):
+        """Return (target_file_path, callee_FunctionDef) for a Call node
+        that invokes a function resolvable to a sibling local file, or None
+        if the call doesn't match one of the import shapes
+        _collect_local_imports() understands.
+        """
+        self._ensure_local_imports()
+        func = call_node.func
+        if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+            target_path = self._local_imports.get(func.value.id)
+            if target_path:
+                return self._resolve_function_in_file(target_path, func.attr)
+        elif isinstance(func, ast.Name):
+            target = self._local_from_imports.get(func.id)
+            if target:
+                target_path, real_name = target
+                return self._resolve_function_in_file(target_path, real_name)
+        return None
+
+    def _map_tainted_args(self, call_node, callee_node, caller_tainted):
+        """Map tainted call-site arguments to the callee's parameter names,
+        by position for positional args and by name for keyword args.
+        """
+        callee_params = [a.arg for a in callee_node.args.args if a.arg not in ("self", "cls")]
+        tainted_params = set()
+        for i, arg_expr in enumerate(call_node.args):
+            if i >= len(callee_params):
+                break
+            if _names_in_subtree(arg_expr, caller_tainted):
+                tainted_params.add(callee_params[i])
+        for kw in call_node.keywords:
+            if kw.arg and kw.arg in callee_params and _names_in_subtree(kw.value, caller_tainted):
+                tainted_params.add(kw.arg)
+        return tainted_params
+
+    def _check_cross_file_calls(self, node, tainted):
+        """One-hop cross-file resolution: for each call in `node`'s body to
+        a locally-importable function, if a tainted argument reaches it,
+        check that function's own body for sinks -- and stop there. This
+        deliberately does not call itself again on the callee, so a sink
+        two calls away from the original tool parameter is out of scope by
+        design; see the module docstring.
+        """
+        if self.file_path is None:
+            return
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Call):
+                continue
+            resolution = self._resolve_local_call(child)
+            if resolution is None:
+                continue
+            target_path, callee_node = resolution
+            callee_tainted = self._map_tainted_args(child, callee_node, tainted)
+            if not callee_tainted:
+                continue
+            self._check_one_hop_function(target_path, callee_node, callee_tainted, node.name)
+
+    def _check_one_hop_function(self, target_path, callee_node, callee_tainted, source_tool_name):
+        key = (target_path, callee_node.name, frozenset(callee_tainted))
+        if key in self._hop_seen:
+            return
+        self._hop_seen.add(key)
+
+        tainted = self._propagate_taint(callee_node, callee_tainted)
+        tainted = self._apply_validation_guards(callee_node, tainted)
+        # Capabilities aggregation (MCP006) intentionally isn't repeated
+        # here -- combining capabilities split across the tool and a helper
+        # it calls would need real interprocedural analysis to do
+        # correctly, which is explicitly out of scope for a one-hop pass.
+        findings, _capabilities = _find_sink_findings(callee_node, tainted)
+        for f in findings:
+            f.file = target_path
+            f.detail = f"[via one-hop import: tainted by {source_tool_name}() calling {callee_node.name}()] {f.detail}"
+        self.findings.extend(findings)
 
 
 def scan_secrets(source: str, filename: str):
@@ -417,9 +630,15 @@ def scan_file(path: str):
     except SyntaxError as e:
         return [], [f"Could not parse {path}: {e}"]
 
-    analyzer = MCPAnalyzer(source)
+    analyzer = MCPAnalyzer(source, file_path=path)
     analyzer.visit(tree)
     analyzer.run_programmatic_registrations(tree)
-    findings = analyzer.findings + scan_secrets(source, path)
+
+    # Deferred import: description_scanner imports helpers from this module,
+    # so importing it at module scope here would be circular. By the time
+    # scan_file() runs, this module is fully loaded.
+    from .description_scanner import scan_descriptions
+
+    findings = analyzer.findings + scan_secrets(source, path) + scan_descriptions(tree, source)
     findings.sort(key=lambda f: f.line)
     return findings, []

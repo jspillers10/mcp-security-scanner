@@ -1,2 +1,8 @@
-# No third-party runtime dependencies -- the analyzer uses only the Python
-# standard library (ast, re, argparse, json).
+# No third-party runtime dependencies for the core static scanner -- it uses
+# only the Python standard library (ast, re, argparse, json).
+#
+# `mcp-scanner live` and `mcp-scanner config` connect to a real running MCP
+# server and need the official MCP Python SDK for that. It's an optional
+# extra, not installed by default: pip install -e ".[live]" (or `pip
+# install mcp` directly). It's free/open-source and makes no network calls
+# of its own beyond the connection you ask it to make.

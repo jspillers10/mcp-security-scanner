@@ -11,6 +11,19 @@ requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [{ name = "Jake Spillers" }]
 
+# Core install stays dependency-free (static analysis is stdlib-only ast/re/
+# argparse/json). The `live` extra pulls in the official MCP Python SDK --
+# a free/open-source protocol client, not a paid API -- needed only by
+# `mcp-scanner live` and `mcp-scanner config`, which speak the MCP protocol
+# to a real running server. Nothing in the core static scanner needs it.
+#
+# Pinned below 2.0: mcp 2.0.0 is a breaking rewrite that removed
+# `mcp.server.fastmcp` (moved/renamed the FastMCP surface entirely), which
+# both live_scanner.py and its test fixtures target. Revisit this pin once
+# this codebase is updated for the 2.x API.
+[project.optional-dependencies]
+live = ["mcp>=1.0,<2.0"]
+
 [project.scripts]
 mcp-scanner = "mcp_scanner.cli:main"
 

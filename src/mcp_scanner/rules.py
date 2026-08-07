@@ -149,4 +149,109 @@ RULES = {
             "and never unpickle data from an untrusted source."
         ),
     ),
+    # MCP1xx: tool/resource *description* heuristics ("Tool Poisoning").
+    #
+    # These are a different kind of finding from MCP00x: MCP00x looks at
+    # what a tool's code does; MCP1xx looks at what the text the tool hands
+    # to the calling model says. SAIF (https://saif.google/secure-ai-framework/risks)
+    # has a risk category named exactly "Prompt Injection" -- "causing a
+    # model to execute commands 'injected' inside a prompt" by exploiting
+    # the blurred line between instructions and data. A tool description is
+    # data from the server's point of view, but the calling model treats it
+    # as part of its instructions, which is precisely that blurred line --
+    # so MCP1xx findings map to Prompt Injection (PI) rather than to Rogue
+    # Actions (RA), which SAIF defines as unintended *actions* an agent
+    # takes, not the injected text that might cause one.
+    "MCP101": Rule(
+        rule_id="MCP101",
+        title="Model-directed imperative language in tool/resource description",
+        severity="medium",
+        saif_category="Prompt Injection",
+        saif_code="PI",
+        description=(
+            "A tool or resource description contains phrasing directed at "
+            "the calling model rather than describing what the tool does -- "
+            "e.g. 'you must', 'always call this first', 'do not tell the "
+            "user', 'ignore previous instructions'. This is the core "
+            "mechanism of a 'Tool Poisoning' attack: the description is "
+            "read by the model as part of its instructions, not rendered "
+            "to the end user, so a malicious server (or a compromised "
+            "package registry entry for one) can steer model behavior "
+            "purely through metadata, with no exploitable code involved."
+        ),
+        remediation=(
+            "Tool and resource descriptions should describe the tool's "
+            "function, parameters, and return value -- nothing else. "
+            "Remove any language instructing the model on when/whether to "
+            "call other tools, what to hide from the user, or how to "
+            "behave generally. If a match here is legitimate documentation "
+            "(e.g. 'you must provide a valid ISO date'), review it and "
+            "suppress with a `# mcp-scanner: ignore` comment."
+        ),
+    ),
+    "MCP102": Rule(
+        rule_id="MCP102",
+        title="Invisible or bidi-control Unicode characters in description",
+        severity="high",
+        saif_category="Prompt Injection",
+        saif_code="PI",
+        description=(
+            "A tool or resource description contains zero-width or "
+            "bidirectional-control Unicode characters (zero-width space/"
+            "joiner, word joiner, BOM, RTL/LTR override or isolate marks). "
+            "These render as nothing or reorder visible text in a UI, so "
+            "they're a way to hide instructions from a human reviewing the "
+            "description while a model still processes the underlying "
+            "codepoints. There is essentially no legitimate reason for "
+            "these characters to appear in tool-facing documentation text."
+        ),
+        remediation=(
+            "Remove the invisible/control characters. If they appeared "
+            "unintentionally (e.g. copy-pasted from a rich text source), "
+            "re-type the description as plain ASCII/UTF-8 text."
+        ),
+    ),
+    "MCP103": Rule(
+        rule_id="MCP103",
+        title="Suspicious base64-looking blob in tool/resource description",
+        severity="medium",
+        saif_category="Prompt Injection",
+        saif_code="PI",
+        description=(
+            "A tool or resource description contains a long, contiguous "
+            "run of base64-alphabet characters. Ordinary prose descriptions "
+            "don't produce runs like this; it's a pattern seen in "
+            "descriptions used to smuggle encoded instructions or data past "
+            "a human skim-reading the text, since the payload doesn't read "
+            "as language."
+        ),
+        remediation=(
+            "Decode and review the blob. If it's a legitimate example value "
+            "(a sample token format, an encoded fixture), suppress with a "
+            "`# mcp-scanner: ignore=MCP103` comment; otherwise remove it."
+        ),
+    ),
+    "MCP104": Rule(
+        rule_id="MCP104",
+        title="Description language suggests hijacking another tool",
+        severity="high",
+        saif_category="Prompt Injection",
+        saif_code="PI",
+        description=(
+            "A tool or resource description references another tool by "
+            "name in a way that suggests the model should prefer, replace, "
+            "or avoid the other tool in favor of this one (e.g. 'instead of "
+            "calling X, call this', 'do not use X, use this instead'). This "
+            "is the 'rug pull' / tool-shadowing pattern: a newly installed "
+            "or updated server redirects the model away from a trusted "
+            "tool and toward an attacker-controlled one, purely through "
+            "description text."
+        ),
+        remediation=(
+            "Tool descriptions should not reference or make claims about "
+            "other tools. If a server genuinely needs to say a tool "
+            "supersedes an older one, that belongs in human-facing release "
+            "notes, not text a model reads as part of its own instructions."
+        ),
+    ),
 }

@@ -1,11 +1,20 @@
-"""CLI entrypoint for mcp-scanner."""
+"""CLI entrypoint for mcp-scanner.
+
+Dispatch is manual rather than argparse subparsers, to keep the original
+`mcp-scanner path/to/server.py` invocation working unchanged: if the first
+argument is literally "live" or "config", that subcommand runs; anything
+else is treated as a path for the static scanner, same as before this file
+had subcommands at all.
+"""
 
 import argparse
 import os
 import sys
 
 from .analyzer import scan_file
-from .report import format_text, format_json
+from .readiness import check_security_md
+from .readiness import scan_file as scan_readiness
+from .report import format_repo_readiness, format_text, to_dict
 
 
 def iter_python_files(path):
@@ -20,7 +29,7 @@ def iter_python_files(path):
                 yield os.path.join(root, name)
 
 
-def main(argv=None):
+def _main_scan(argv):
     parser = argparse.ArgumentParser(
         prog="mcp-scanner",
         description="Static security scanner for MCP (Model Context Protocol) server source code.",
@@ -41,31 +50,31 @@ def main(argv=None):
     all_findings = []
     json_results = []
 
+    # Repository-level readiness checks (currently: is there a SECURITY.md?)
+    # run once per directory scan, not once per file -- there's nothing
+    # file-specific about "does this repo have a SECURITY.md."
+    repo_readiness = []
+    if os.path.isdir(args.path):
+        repo_check = check_security_md(args.path)
+        if repo_check:
+            repo_readiness.append(repo_check)
+
     for file_path in iter_python_files(args.path):
         findings, errors = scan_file(file_path)
+        readiness, readiness_errors = scan_readiness(file_path)
+        combined_errors = errors + [e for e in readiness_errors if e not in errors]
         all_findings.extend(findings)
         if args.format == "json":
-            json_results.append(
-                {
-                    "path": file_path,
-                    "errors": errors,
-                    "findings": [
-                        {
-                            "rule_id": f.rule_id,
-                            "title": f.title,
-                            "severity": f.severity,
-                            "saif_category": f.saif_category,
-                            "saif_code": f.saif_code,
-                            "line": f.line,
-                            "function": f.function_name,
-                            "detail": f.detail,
-                        }
-                        for f in findings
-                    ],
-                }
-            )
+            json_results.append(to_dict(file_path, findings, combined_errors, readiness))
         else:
-            print(format_text(file_path, findings, errors))
+            print(format_text(file_path, findings, combined_errors, readiness))
+            print()
+
+    if repo_readiness:
+        if args.format == "json":
+            json_results.append(to_dict(args.path, [], [], repo_readiness))
+        else:
+            print(format_repo_readiness(args.path, repo_readiness))
             print()
 
     if args.format == "json":
@@ -79,6 +88,91 @@ def main(argv=None):
             sys.exit(1)
 
     sys.exit(0)
+
+
+def _main_live(argv):
+    parser = argparse.ArgumentParser(
+        prog="mcp-scanner live",
+        description=(
+            "Connect to a running MCP server and scan the tool/resource descriptions it "
+            "actually reports (via list_tools()/list_resources()) for the same heuristics "
+            "as static scanning. This connects once, enumerates, and disconnects -- it is "
+            "not a runtime traffic monitor."
+        ),
+    )
+    parser.add_argument("--format", choices=["text", "json"], default="text")
+    transport = parser.add_subparsers(dest="transport", required=True)
+
+    stdio_p = transport.add_parser("stdio", help="Launch COMMAND as a subprocess and speak MCP over its stdin/stdout")
+    stdio_p.add_argument("command", help="Executable to launch")
+    stdio_p.add_argument("args", nargs=argparse.REMAINDER, help="Arguments to pass to COMMAND")
+
+    sse_p = transport.add_parser("sse", help="Connect to a running server over SSE/HTTP")
+    sse_p.add_argument("url", help="Server URL, e.g. http://localhost:8000/sse")
+
+    args = parser.parse_args(argv)
+
+    from .live_scanner import LiveConnectionError, scan_live_sse, scan_live_stdio
+    from .report import format_live_json, format_live_text
+
+    try:
+        if args.transport == "stdio":
+            target = f"stdio -> {args.command} {' '.join(args.args)}".strip()
+            findings, tools, resources = scan_live_stdio(args.command, args.args)
+        else:
+            target = f"sse -> {args.url}"
+            findings, tools, resources = scan_live_sse(args.url)
+    except LiveConnectionError as e:
+        print(f"[error] {e}", file=sys.stderr)
+        sys.exit(2)
+
+    if args.format == "json":
+        print(format_live_json(target, findings, len(tools), len(resources)))
+    else:
+        print(format_live_text(target, findings, len(tools), len(resources)))
+
+    sys.exit(1 if any(f.severity in ("critical", "high") for f in findings) else 0)
+
+
+def _main_config(argv):
+    parser = argparse.ArgumentParser(
+        prog="mcp-scanner config",
+        description=(
+            "Connect to every MCP server listed in a client config file (Claude Desktop's "
+            "claude_desktop_config.json, or Claude Code's MCP config) and flag tool names "
+            "that collide across servers -- a lightweight 'tool shadowing' check."
+        ),
+    )
+    parser.add_argument("config_path", help="Path to the client MCP config JSON file")
+    parser.add_argument("--format", choices=["text", "json"], default="text")
+    args = parser.parse_args(argv)
+
+    from .config_scanner import scan_config
+    from .report import format_config_json, format_config_text
+
+    try:
+        shadow_findings, per_server, errors = scan_config(args.config_path)
+    except ValueError as e:
+        print(f"[error] {e}", file=sys.stderr)
+        sys.exit(2)
+
+    if args.format == "json":
+        print(format_config_json(args.config_path, shadow_findings, per_server, errors))
+    else:
+        print(format_config_text(args.config_path, shadow_findings, per_server, errors))
+
+    sys.exit(1 if shadow_findings else 0)
+
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+
+    if argv and argv[0] == "live":
+        return _main_live(argv[1:])
+    if argv and argv[0] == "config":
+        return _main_config(argv[1:])
+    return _main_scan(argv)
 
 
 if __name__ == "__main__":
