@@ -41,7 +41,7 @@ def format_text(path, findings, errors, readiness=None):
     if findings:
         ordered = sorted(findings, key=lambda f: (SEVERITY_ORDER[f.severity], f.line))
 
-        counts = {}
+        counts: dict[str, int] = {}
         for f in ordered:
             counts[f.severity] = counts.get(f.severity, 0) + 1
         summary = "  Summary: " + ", ".join(
@@ -146,7 +146,7 @@ def format_live_text(target, findings, tool_count, resource_count):
         return "\n".join(lines)
 
     ordered = sorted(findings, key=lambda f: (SEVERITY_ORDER[f.severity], f.function_name))
-    counts = {}
+    counts: dict[str, int] = {}
     for f in ordered:
         counts[f.severity] = counts.get(f.severity, 0) + 1
     summary = "  Summary: " + ", ".join(
@@ -213,7 +213,7 @@ def format_config_text(config_path, shadow_findings, per_server, errors):
         return "\n".join(lines)
 
     ordered = sorted(shadow_findings, key=lambda f: SEVERITY_ORDER[f.severity])
-    counts = {}
+    counts: dict[str, int] = {}
     for f in ordered:
         counts[f.severity] = counts.get(f.severity, 0) + 1
     summary = "  Summary: " + ", ".join(

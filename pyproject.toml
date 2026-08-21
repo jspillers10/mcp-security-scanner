@@ -1,31 +1,87 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-security-scanner"
-version = "0.1.0"
-description = "Static security scanner for MCP (Model Context Protocol) server source code, with findings mapped to Google SAIF risk categories."
+dynamic = ["version"]
+description = "Production-minded static, live, and configuration security scanner for Python MCP servers."
 readme = "README.md"
-requires-python = ">=3.9"
-license = { text = "MIT" }
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Jake Spillers" }]
+keywords = ["mcp", "security", "sast", "sarif", "ai-security"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = []
 
-# Core install stays dependency-free (static analysis is stdlib-only ast/re/
-# argparse/json). The `live` extra pulls in the official MCP Python SDK --
-# a free/open-source protocol client, not a paid API -- needed only by
-# `mcp-scanner live` and `mcp-scanner config`, which speak the MCP protocol
-# to a real running server. Nothing in the core static scanner needs it.
-#
-# Pinned below 2.0: mcp 2.0.0 is a breaking rewrite that removed
-# `mcp.server.fastmcp` (moved/renamed the FastMCP surface entirely), which
-# both live_scanner.py and its test fixtures target. Revisit this pin once
-# this codebase is updated for the 2.x API.
 [project.optional-dependencies]
-live = ["mcp>=1.0,<2.0"]
+live = ["mcp>=1.28,<2"]
+test = [
+    "jsonschema>=4.20,<5",
+    "pytest>=8.3",
+    "pytest-cov>=5",
+]
+benchmark = ["jsonschema>=4.20,<5"]
+dev = [
+    "bandit>=1.8",
+    "build>=1.2",
+    "mypy>=1.11",
+    "ruff>=0.8",
+]
 
 [project.scripts]
 mcp-scanner = "mcp_scanner.cli:main"
 
+[project.urls]
+Homepage = "https://github.com/jspillers10/mcp-security-scanner"
+Issues = "https://github.com/jspillers10/mcp-security-scanner/issues"
+Repository = "https://github.com/jspillers10/mcp-security-scanner.git"
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "mcp_scanner.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["mcp_scanner"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["tests/fixtures", "benchmark/fixtures"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src", "benchmark"]
+check_untyped_defs = true
+ignore_missing_imports = true
+show_error_codes = true

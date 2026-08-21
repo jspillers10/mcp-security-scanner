@@ -28,6 +28,7 @@ Limitations section.
 
 import json
 from dataclasses import dataclass, field
+from typing import Any
 
 from .live_scanner import LiveConnectionError, connect_sse, connect_stdio
 
@@ -76,15 +77,21 @@ def load_server_specs(config_path: str):
     problem the caller should surface directly, not something to guess
     past.
     """
-    with open(config_path, "r", encoding="utf-8") as f:
-        try:
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"{config_path} is not valid JSON: {e}") from e
+    except OSError as e:
+        raise ValueError(f"could not read {config_path}: {e}") from e
+    except json.JSONDecodeError as e:
+        raise ValueError(f"{config_path} is not valid JSON: {e}") from e
 
     servers = data.get("mcpServers")
     if not isinstance(servers, dict):
-        raise ValueError(f"{config_path} has no top-level \"mcpServers\" object (checked for the shape both Claude Desktop and Claude Code use)")
+        raise ValueError(
+            f'{config_path} has no top-level "mcpServers" object (checked for the shape both Claude Desktop and Claude Code use)'
+        )
+    if any(not isinstance(name, str) or not isinstance(spec, dict) for name, spec in servers.items()):
+        raise ValueError(f'{config_path} contains an invalid entry; every "mcpServers" value must be an object')
 
     return list(servers.items())
 
@@ -102,7 +109,7 @@ def _connect_for_spec(name, spec):
     if "command" in spec:
         tools, _resources = connect_stdio(spec["command"], spec.get("args"), spec.get("env"))
         return tools
-    raise ValueError(f"server '{name}' has neither \"command\" nor \"url\" -- can't determine how to connect to it")
+    raise ValueError(f"server {name!r} has neither a command nor URL; cannot determine how to connect")
 
 
 def _levenshtein(a: str, b: str) -> int:
@@ -133,9 +140,9 @@ def _find_shadowed_tools(per_server):
     within their own tool set is their own business, not a cross-server
     shadowing risk).
     """
-    findings = []
-    exact_map = {}
-    all_tools = []  # (server_name, tool_name)
+    findings: list[ShadowFinding] = []
+    exact_map: dict[str, list[str]] = {}
+    all_tools: list[tuple[str, str]] = []
 
     for server_name, result in per_server.items():
         for tool_name in result["tools"]:
@@ -187,8 +194,8 @@ def scan_config(config_path: str):
     (findings, errors) shape the rest of this project returns.
     """
     specs = load_server_specs(config_path)
-    per_server = {}
-    errors = []
+    per_server: dict[str, dict[str, Any]] = {}
+    errors: list[str] = []
 
     for name, spec in specs:
         try:

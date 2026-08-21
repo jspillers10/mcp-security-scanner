@@ -31,7 +31,11 @@ def test_levenshtein_basic_cases():
 
 def test_load_server_specs_reads_mcp_servers_object(tmp_path):
     config = tmp_path / "config.json"
-    config.write_text(json.dumps({"mcpServers": {"a": {"command": "python", "args": ["a.py"]}, "b": {"url": "http://localhost:1/sse"}}}))
+    config.write_text(
+        json.dumps(
+            {"mcpServers": {"a": {"command": "python", "args": ["a.py"]}, "b": {"url": "http://localhost:1/sse"}}}
+        )
+    )
     specs = load_server_specs(str(config))
     assert dict(specs)["a"] == {"command": "python", "args": ["a.py"]}
     assert dict(specs)["b"] == {"url": "http://localhost:1/sse"}
@@ -44,10 +48,22 @@ def test_load_server_specs_rejects_invalid_json(tmp_path):
         load_server_specs(str(config))
 
 
+def test_load_server_specs_rejects_missing_file(tmp_path):
+    with pytest.raises(ValueError, match="could not read"):
+        load_server_specs(str(tmp_path / "missing.json"))
+
+
 def test_load_server_specs_rejects_missing_mcp_servers_key(tmp_path):
     config = tmp_path / "config.json"
     config.write_text(json.dumps({"somethingElse": {}}))
     with pytest.raises(ValueError):
+        load_server_specs(str(config))
+
+
+def test_load_server_specs_rejects_non_object_server_entry(tmp_path):
+    config = tmp_path / "config.json"
+    config.write_text(json.dumps({"mcpServers": {"broken": None}}))
+    with pytest.raises(ValueError, match="every.*value must be an object"):
         load_server_specs(str(config))
 
 
@@ -96,7 +112,9 @@ def test_find_shadowed_tools_short_names_excluded_from_similarity_check():
 
 # -- real end-to-end: connects to actual stdio MCP server subprocesses ------
 
-pytest.importorskip("mcp", reason="config-scan integration tests require the optional 'mcp' SDK: pip install -e '.[live]'")
+pytest.importorskip(
+    "mcp", reason="config-scan integration tests require the optional 'mcp' SDK: pip install -e '.[live]'"
+)
 
 from mcp_scanner.config_scanner import scan_config  # noqa: E402
 

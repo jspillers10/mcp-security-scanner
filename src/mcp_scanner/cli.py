@@ -8,6 +8,7 @@ had subcommands at all.
 """
 
 import argparse
+import json
 import os
 import sys
 
@@ -15,6 +16,8 @@ from .analyzer import scan_file
 from .readiness import check_security_md
 from .readiness import scan_file as scan_readiness
 from .report import format_repo_readiness, format_text, to_dict
+
+MACHINE_FORMATS = {"json", "sarif"}
 
 
 def iter_python_files(path):
@@ -29,6 +32,27 @@ def iter_python_files(path):
                 yield os.path.join(root, name)
 
 
+def _add_output_argument(parser):
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="Write machine-readable output to this file instead of stdout (use '-' for stdout)",
+    )
+
+
+def _write_output(content, output_path):
+    if not output_path or output_path == "-":
+        print(content)
+        return
+    try:
+        with open(output_path, "w", encoding="utf-8", newline="\n") as output_file:
+            output_file.write(content)
+            output_file.write("\n")
+    except OSError as error:
+        print(f"[error] Could not write {output_path}: {error}", file=sys.stderr)
+        raise SystemExit(2) from error
+
+
 def _main_scan(argv):
     parser = argparse.ArgumentParser(
         prog="mcp-scanner",
@@ -36,7 +60,10 @@ def _main_scan(argv):
     )
     parser.add_argument("path", help="File or directory to scan")
     parser.add_argument(
-        "--format", choices=["text", "json"], default="text", help="Output format (default: text)"
+        "--format",
+        choices=["text", "json", "sarif"],
+        default="text",
+        help="Output format (default: text)",
     )
     parser.add_argument(
         "--fail-on",
@@ -44,11 +71,18 @@ def _main_scan(argv):
         default="none",
         help="Exit with a non-zero status if a finding at or above this severity is present",
     )
+    _add_output_argument(parser)
     args = parser.parse_args(argv)
+
+    if args.output and args.format not in MACHINE_FORMATS:
+        parser.error("--output requires --format json or --format sarif")
+    if not os.path.exists(args.path):
+        parser.error(f"path does not exist: {args.path}")
 
     severity_rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     all_findings = []
     json_results = []
+    scan_results = []
 
     # Repository-level readiness checks (currently: is there a SECURITY.md?)
     # run once per directory scan, not once per file -- there's nothing
@@ -59,28 +93,43 @@ def _main_scan(argv):
         if repo_check:
             repo_readiness.append(repo_check)
 
-    for file_path in iter_python_files(args.path):
-        findings, errors = scan_file(file_path)
-        readiness, readiness_errors = scan_readiness(file_path)
+    python_files = sorted(iter_python_files(args.path))
+    for file_path in python_files:
+        try:
+            findings, errors = scan_file(file_path)
+            readiness, readiness_errors = scan_readiness(file_path)
+        except (OSError, UnicodeError) as error:
+            findings, readiness = [], []
+            errors, readiness_errors = [f"Could not read {file_path}: {error}"], []
         combined_errors = errors + [e for e in readiness_errors if e not in errors]
         all_findings.extend(findings)
+        scan_results.append((file_path, findings, combined_errors, readiness))
         if args.format == "json":
             json_results.append(to_dict(file_path, findings, combined_errors, readiness))
-        else:
+        elif args.format == "text":
             print(format_text(file_path, findings, combined_errors, readiness))
             print()
 
     if repo_readiness:
         if args.format == "json":
             json_results.append(to_dict(args.path, [], [], repo_readiness))
-        else:
+        elif args.format == "text":
             print(format_repo_readiness(args.path, repo_readiness))
             print()
 
     if args.format == "json":
-        import json as _json
+        _write_output(json.dumps(json_results, indent=2), args.output)
+    elif args.format == "sarif":
+        from .sarif import to_sarif
 
-        print(_json.dumps(json_results, indent=2))
+        sarif_log = to_sarif(args.path, scan_results, repo_readiness)
+        _write_output(json.dumps(sarif_log, indent=2), args.output)
+    elif not python_files and not repo_readiness:
+        header = f"MCP Security Scan: {args.path}"
+        print(f"{header}\n{'=' * len(header)}\n  No Python files found.\n")
+
+    if any(errors for _, _, errors, _ in scan_results):
+        sys.exit(2)
 
     if args.fail_on != "none":
         threshold = severity_rank[args.fail_on]
@@ -101,6 +150,7 @@ def _main_live(argv):
         ),
     )
     parser.add_argument("--format", choices=["text", "json"], default="text")
+    _add_output_argument(parser)
     transport = parser.add_subparsers(dest="transport", required=True)
 
     stdio_p = transport.add_parser("stdio", help="Launch COMMAND as a subprocess and speak MCP over its stdin/stdout")
@@ -111,6 +161,8 @@ def _main_live(argv):
     sse_p.add_argument("url", help="Server URL, e.g. http://localhost:8000/sse")
 
     args = parser.parse_args(argv)
+    if args.output and args.format != "json":
+        parser.error("--output requires --format json")
 
     from .live_scanner import LiveConnectionError, scan_live_sse, scan_live_stdio
     from .report import format_live_json, format_live_text
@@ -127,7 +179,7 @@ def _main_live(argv):
         sys.exit(2)
 
     if args.format == "json":
-        print(format_live_json(target, findings, len(tools), len(resources)))
+        _write_output(format_live_json(target, findings, len(tools), len(resources)), args.output)
     else:
         print(format_live_text(target, findings, len(tools), len(resources)))
 
@@ -145,7 +197,10 @@ def _main_config(argv):
     )
     parser.add_argument("config_path", help="Path to the client MCP config JSON file")
     parser.add_argument("--format", choices=["text", "json"], default="text")
+    _add_output_argument(parser)
     args = parser.parse_args(argv)
+    if args.output and args.format != "json":
+        parser.error("--output requires --format json")
 
     from .config_scanner import scan_config
     from .report import format_config_json, format_config_text
@@ -157,7 +212,7 @@ def _main_config(argv):
         sys.exit(2)
 
     if args.format == "json":
-        print(format_config_json(args.config_path, shadow_findings, per_server, errors))
+        _write_output(format_config_json(args.config_path, shadow_findings, per_server, errors), args.output)
     else:
         print(format_config_text(args.config_path, shadow_findings, per_server, errors))
 

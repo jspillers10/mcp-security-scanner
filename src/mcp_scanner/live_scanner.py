@@ -97,7 +97,9 @@ def connect_stdio(command, args=None, env=None, timeout=DEFAULT_CONNECT_TIMEOUT_
     except LiveConnectionError:
         raise
     except asyncio.TimeoutError as e:
-        raise LiveConnectionError(f"timed out after {timeout}s connecting via stdio to '{command}' -- is it a valid MCP server?") from e
+        raise LiveConnectionError(
+            f"timed out after {timeout}s connecting via stdio to '{command}' -- is it a valid MCP server?"
+        ) from e
     except Exception as e:
         raise LiveConnectionError(f"failed to connect via stdio to '{command}': {e}") from e
 

@@ -1,0 +1,93 @@
+{
+  "schema_version": "1.0",
+  "corpora": [
+    {
+      "id": "dvmcp-79734c19",
+      "name": "Damn Vulnerable MCP Server, classic static subset",
+      "repository": "https://github.com/harishsg993010/damn-vulnerable-MCP-server.git",
+      "commit": "79734c19f5104cd11486c90926d245560f53befa",
+      "retrieved_at": "2026-08-20",
+      "license": {
+        "declared": "MIT",
+        "status": "declared-unverified",
+        "source": "README.md lines 115-117 at the pinned commit",
+        "license_file_present": false,
+        "note": "The README says MIT and refers to LICENSE, but no LICENSE file exists in the pinned tree. The corpus is retrieved separately and is not vendored. Users must make their own licensing determination."
+      },
+      "language": "python",
+      "mcp_framework": "FastMCP from the MCP Python SDK",
+      "intentionally_vulnerable": true,
+      "execution_prohibited": true,
+      "compatibility_notes": "The upstream project does not pin a compatible MCP SDK runtime. Runtime compatibility is irrelevant to this static-only benchmark because corpus code is never imported or launched.",
+      "default_path": "benchmark/.corpora/dvmcp-79734c19",
+      "ground_truth": "benchmark/ground_truth/dvmcp-79734c19.json",
+      "scope_note": "Exactly the ten classic challenges/*/challengeN/server.py files. SSE variants, support code, tests, solutions, and documentation are excluded from scanning.",
+      "require_git_commit": true,
+      "tree_sha256": "d58484de9680b616900eba4460f3820db32d88f8f7f117b2d78576ad75100847",
+      "files": [
+        {"path": "challenges/easy/challenge1/server.py", "sha256": "6d906ca509a0e56962b32bb6459e0cdec88b2efcb366f03f825f2c7d34393d9c"},
+        {"path": "challenges/easy/challenge2/server.py", "sha256": "3e878edf2457b171dc5e8f626d7162e466caceca5f293fa41b69cac646c1920d"},
+        {"path": "challenges/easy/challenge3/server.py", "sha256": "dc16ad40aeb20c33d222c5461080be1745cce0a859efd8701a1c9529db15d633"},
+        {"path": "challenges/medium/challenge4/server.py", "sha256": "223c123d7ffe2f65b3421f208defed145c029ac6b92b37b16fb4e37cd73ab2e0"},
+        {"path": "challenges/medium/challenge5/server.py", "sha256": "e8dbc662bf24ee26ddd861b7c0aaf48781873be1773e90ac5f7204c014ddfef1"},
+        {"path": "challenges/medium/challenge6/server.py", "sha256": "d650962a0057709f31233404ed34abfe256183a64c82192978688587a18e7e5b"},
+        {"path": "challenges/medium/challenge7/server.py", "sha256": "96384ed9b3a95fd189a065efc4526ac92dfdc03a4fb49bbd95fe5b2ecb96ad95"},
+        {"path": "challenges/hard/challenge8/server.py", "sha256": "21ae92e1c04121b2d20aada88af2f988da485a7c73f60f22c0bb7e96e431778b"},
+        {"path": "challenges/hard/challenge9/server.py", "sha256": "81cdc1a6632844400ac7f9c969fe299b5e66e4bc300eb592392a83da0534b76b"},
+        {"path": "challenges/hard/challenge10/server.py", "sha256": "fe5c0b29985b2fbaf6c61263c0e9dc98bf487da718005760a494c6d26f139891"}
+      ],
+      "excluded": [
+        {"pattern": "challenges/**/server_sse.py", "reason": "Transport duplicate; excluded to prevent double-counting the same challenge."},
+        {"pattern": "common/**", "reason": "Support code is outside the declared ten-file challenge scope."},
+        {"pattern": "tests/**", "reason": "Upstream infrastructure tests are not MCP server benchmark subjects."},
+        {"pattern": "docs/** and solutions/**", "reason": "Used as adjudication evidence, never scanned as Python source."}
+      ]
+    },
+    {
+      "id": "local-boundaries-v1",
+      "name": "Project-owned false-positive and known-boundary fixtures v1",
+      "repository": null,
+      "commit": null,
+      "retrieved_at": "2026-08-20",
+      "license": {
+        "declared": "MIT",
+        "status": "project-owned",
+        "source": "Repository LICENSE",
+        "license_file_present": true,
+        "note": "These fixtures are maintained in this repository and covered by its license."
+      },
+      "language": "python",
+      "mcp_framework": "FastMCP-shaped static fixtures plus non-MCP counterexamples",
+      "intentionally_vulnerable": "mixed",
+      "execution_prohibited": true,
+      "compatibility_notes": "Fixtures are parsed as source text only. Imports need not resolve and no fixture dependency is required by the benchmark runner.",
+      "default_path": "benchmark/fixtures",
+      "ground_truth": "benchmark/ground_truth/local-boundaries-v1.json",
+      "scope_note": "All Python files under benchmark/fixtures. Safe cases assess false positives; known blind spots are explicitly excluded from recall denominators.",
+      "require_git_commit": false,
+      "tree_sha256": "7374f71b8555ba0f611ae9b5aea85cd88ec01906101a0a49e4e4b7338b715e5d",
+      "files": [
+        {"path": "false_negative/aliased_dangerous_function.py", "sha256": "22b76bb6ba670fd3e6531564bd8e28c138bdbe2ba3e3a841b0e58b465821f521"},
+        {"path": "false_negative/class_method_sink.py", "sha256": "802ff5e3edabde68982cd15ee926279d1065e5f7dbd66324fab0575dc9caf8b5"},
+        {"path": "false_negative/dynamic_description.py", "sha256": "7c001d4a4f4bed1ac0dda54c9af12f69995c9a02da0f5e911152345e4e386b96"},
+        {"path": "false_negative/indirect_prompt_output.py", "sha256": "f51890f4a466feb080465a03c9ff14050129ee99ee62e0caa86243f683710937"},
+        {"path": "false_negative/multi_hop_dataflow.py", "sha256": "303317f7dc0f065ed0f7aa4a9d6b51021668c4670739ace159971f498c1914b8"},
+        {"path": "false_negative/obfuscated_command.py", "sha256": "63817086bfe4b75c22cf0f682c4da35313980c0e71c2d621ca64385ef27c36cb"},
+        {"path": "false_negative/runtime_mutation.py", "sha256": "5088c9a1ec2c2dec70251b0aeebb51ae1b491da450d3cfa857f11d4533e5d04e"},
+        {"path": "false_positive/benign_imperative_description.py", "sha256": "f0d1f5c1d6e2e1fc2cb3cb637eb765d1e85df15f11b288081e541a81b346322f"},
+        {"path": "false_positive/imported_auth/guard.py", "sha256": "391ce9fc580a2b31387eb4b9fbc472adb5b5781dd6bf58bd752837a4827a200a"},
+        {"path": "false_positive/imported_auth/server.py", "sha256": "c2093026777a4b6ca197c7eb9ce8c521354c0f98d1144e0f8376359e35f05ceb"},
+        {"path": "false_positive/intended_duplicate_names/server_a.py", "sha256": "b3e20cc0f3f54fea9d40a65049800cf230301cc63b732daa5b681380912718c3"},
+        {"path": "false_positive/intended_duplicate_names/server_b.py", "sha256": "aba0aa4ab5c1bca4ae5d00028c1724f11f40f40fe97c240730a537b4e2038447"},
+        {"path": "false_positive/legitimate_base64_description.py", "sha256": "0595f8e4ceddbcc15ebc08adf8b097817d67e5fd7c155f2a3260d7f3400116f3"},
+        {"path": "false_positive/registration_resemblance.py", "sha256": "9e10f4d55b93d330bc2ae8c39d23bda0904b75a7bf434468b68240d4f2cd2484"},
+        {"path": "false_positive/safe_deserialization.py", "sha256": "16df6e47a9bdf4e6bc5dda416eec0da44dd60753fe05acee508a4e213599dc73"},
+        {"path": "false_positive/safe_subprocess_args.py", "sha256": "20002a9220052bc4a5320598c2b7430fafb1dfb06c581ca0ef8f6f9f348b54d1"},
+        {"path": "false_positive/validated_paths.py", "sha256": "1215ae3d0966c963eb0afba16d0537e6528fd5ca291a835b7f4c961290998507"}
+      ],
+      "excluded": [
+        {"pattern": "false_negative/**", "reason": "Scanned and reported, but declared unsupported patterns do not enter the recall denominator."}
+      ]
+    }
+  ]
+}
