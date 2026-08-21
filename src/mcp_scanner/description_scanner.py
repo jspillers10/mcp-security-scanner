@@ -176,7 +176,9 @@ def _find_imperative(text):
         match = re.search(pattern, text, re.IGNORECASE)
         if match and label not in seen:
             seen.add(label)
-            findings.append(("MCP101", f"description contains model-directed imperative language ({label!r}): {match.group(0)!r}"))
+            findings.append(
+                ("MCP101", f"description contains model-directed imperative language ({label!r}): {match.group(0)!r}")
+            )
     return findings
 
 
@@ -221,7 +223,9 @@ def _find_base64_blobs(text):
         if not _looks_like_base64(candidate):
             continue
         preview = candidate if len(candidate) <= 24 else candidate[:24] + "..."
-        findings.append(("MCP103", f"description contains a long base64-looking blob ({len(candidate)} chars): {preview!r}"))
+        findings.append(
+            ("MCP103", f"description contains a long base64-looking blob ({len(candidate)} chars): {preview!r}")
+        )
     return findings
 
 
@@ -248,8 +252,8 @@ def scan_description_text(name: str, text: str):
 class DescriptionScanner:
     def __init__(self, source: str):
         self.source_lines = source.splitlines()
-        self.findings = []
-        self._scanned_ids = set()
+        self.findings: list[Finding] = []
+        self._scanned_ids: set[int] = set()
 
     def scan(self, tree):
         for node in ast.walk(tree):

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jspillers10/mcp-security-scanner/benchmark/schemas/ground-truth.schema.json",
+  "title": "MCP scanner benchmark ground truth",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "corpus_id", "methodology_version", "cases"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "corpus_id": {"type": "string", "minLength": 1},
+    "methodology_version": {"type": "string", "minLength": 1},
+    "cases": {"type": "array", "items": {"$ref": "#/$defs/case"}}
+  },
+  "$defs": {
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_line", "end_line", "function"],
+      "properties": {
+        "start_line": {"type": "integer", "minimum": 1},
+        "end_line": {"type": "integer", "minimum": 1},
+        "function": {"type": ["string", "null"]}
+      }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classification", "rule_id", "severity", "unexpected_rules"],
+      "properties": {
+        "classification": {"enum": ["finding", "no_finding", "excluded"]},
+        "rule_id": {"type": ["string", "null"], "pattern": "^(MCP|RDY)[0-9]{3}$"},
+        "severity": {"type": ["string", "null"], "enum": ["critical", "high", "medium", "low", null]},
+        "unexpected_rules": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^(MCP|RDY)[0-9]{3}$"},
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"classification": {"const": "finding"}}},
+          "then": {"properties": {"rule_id": {"type": "string"}, "severity": {"type": "string"}}}
+        },
+        {
+          "if": {"properties": {"classification": {"enum": ["no_finding", "excluded"]}}},
+          "then": {"properties": {"rule_id": {"type": "null"}, "severity": {"type": "null"}}}
+        }
+      ]
+    },
+    "source_of_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reference", "note"],
+      "properties": {
+        "kind": {"enum": ["upstream-documentation", "manual-source-review", "fixture-contract"]},
+        "reference": {"type": "string", "minLength": 1},
+        "note": {"type": "string", "minLength": 1}
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reviewer", "reviewed_at"],
+      "properties": {
+        "state": {"enum": ["pending", "single-reviewed", "independent-reviewed", "disputed"]},
+        "reviewer": {"type": "string", "minLength": 1},
+        "reviewed_at": {"type": "string", "format": "date"}
+      }
+    },
+    "matching": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "line_tolerance"],
+      "properties": {
+        "mode": {"enum": ["exact", "line_tolerant"]},
+        "line_tolerance": {"type": "integer", "minimum": 0, "maximum": 20}
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "corpus", "title", "file", "location", "vulnerability_class", "category", "metric_group", "in_scope",
+        "expected_result", "source", "sink", "attack_preconditions", "source_of_truth", "rationale",
+        "review_status", "matching"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$"},
+        "corpus": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "file": {"type": "string", "minLength": 1},
+        "location": {"$ref": "#/$defs/location"},
+        "vulnerability_class": {"type": "string", "minLength": 1},
+        "category": {
+          "enum": [
+            "in_scope_vulnerability", "in_scope_safe", "prompt_description", "infrastructure_readiness",
+            "runtime_only", "unsupported_static_pattern", "ambiguous"
+          ]
+        },
+        "metric_group": {"enum": ["code_vulnerability", "description_vulnerability", "readiness", "excluded"]},
+        "in_scope": {"type": "boolean"},
+        "expected_result": {"$ref": "#/$defs/expected"},
+        "source": {"type": ["string", "null"]},
+        "sink": {"type": ["string", "null"]},
+        "attack_preconditions": {"type": "array", "items": {"type": "string"}},
+        "source_of_truth": {"$ref": "#/$defs/source_of_truth"},
+        "rationale": {"type": "string", "minLength": 1},
+        "review_status": {"$ref": "#/$defs/review"},
+        "matching": {"$ref": "#/$defs/matching"}
+      }
+    }
+  }
+}

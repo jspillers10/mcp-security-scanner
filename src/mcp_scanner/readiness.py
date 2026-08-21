@@ -94,10 +94,7 @@ READINESS_CHECKS = {
             "report it responsibly, and no stated supported-version or "
             "disclosure policy."
         ),
-        remediation=(
-            "Add a SECURITY.md describing supported versions and how to "
-            "report a vulnerability privately."
-        ),
+        remediation=("Add a SECURITY.md describing supported versions and how to report a vulnerability privately."),
     ),
     "RDY004": ReadinessCheck(
         check_id="RDY004",
@@ -112,8 +109,7 @@ READINESS_CHECKS = {
             "context that may not match how it's actually run."
         ),
         remediation=(
-            "Use an unprivileged port (>= 1024) by default, and make the "
-            "port configurable rather than hardcoded."
+            "Use an unprivileged port (>= 1024) by default, and make the port configurable rather than hardcoded."
         ),
     ),
     "RDY005": ReadinessCheck(
@@ -165,7 +161,8 @@ class ReadinessFinding:
         self.title = check.title
 
 
-ZERO_BIND = "0.0.0.0"
+# This is a detection signature, not a network bind.
+ZERO_BIND = "0.0.0.0"  # nosec B104
 
 # Deliberately broad substring net -- this check's whole job is "is there
 # any hint of auth anywhere in the file's actual code," not to identify a
@@ -208,9 +205,19 @@ def _const_bool(node):
 
 
 def _is_getenv_call(func):
-    if isinstance(func, ast.Attribute) and func.attr == "getenv" and isinstance(func.value, ast.Name) and func.value.id == "os":
+    if (
+        isinstance(func, ast.Attribute)
+        and func.attr == "getenv"
+        and isinstance(func.value, ast.Name)
+        and func.value.id == "os"
+    ):
         return True
-    if isinstance(func, ast.Attribute) and func.attr == "get" and isinstance(func.value, ast.Attribute) and func.value.attr == "environ":
+    if (
+        isinstance(func, ast.Attribute)
+        and func.attr == "get"
+        and isinstance(func.value, ast.Attribute)
+        and func.value.attr == "environ"
+    ):
         return True
     if isinstance(func, ast.Name) and func.id == "getenv":
         return True
@@ -229,11 +236,14 @@ def _check_zero_bind(tree):
                 key = _const_str(node.args[0])
                 default = _const_str(node.args[1])
                 if default == ZERO_BIND and key and "host" in key.lower():
+                    call_name = (
+                        node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "getenv")
+                    )
                     findings.append(
                         ReadinessFinding(
                             "RDY001",
                             node.lineno,
-                            f'{node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id}({key!r}, "0.0.0.0") -- 0.0.0.0 default for a host-like env var',
+                            f'{call_name}({key!r}, "0.0.0.0") -- 0.0.0.0 default for a host-like env var',
                         )
                     )
         elif isinstance(node, ast.Assign):
@@ -254,7 +264,11 @@ def _check_ports_and_debug(tree):
         if port_val is not None:
             port = _const_int(port_val)
             if port is not None and 0 < port < 1024:
-                findings.append(ReadinessFinding("RDY004", node.lineno, f"hardcoded port={port} (requires elevated privileges to bind)"))
+                findings.append(
+                    ReadinessFinding(
+                        "RDY004", node.lineno, f"hardcoded port={port} (requires elevated privileges to bind)"
+                    )
+                )
         debug_val = _call_keyword(node, "debug")
         if debug_val is not None and _const_bool(debug_val) is True:
             findings.append(ReadinessFinding("RDY005", node.lineno, "debug=True"))
@@ -290,7 +304,12 @@ def _find_transport_setup(tree):
             continue
         func = node.func
         name = _call_name(func)
-        if name == "run" and isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name) and func.value.id == "uvicorn":
+        if (
+            name == "run"
+            and isinstance(func, ast.Attribute)
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "uvicorn"
+        ):
             return node.lineno
         if name in TRANSPORT_CALL_NAMES:
             return node.lineno
@@ -319,7 +338,11 @@ def _has_auth_reference(tree):
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             for dec in node.decorator_list:
                 target = dec.func if isinstance(dec, ast.Call) else dec
-                dec_name = target.attr if isinstance(target, ast.Attribute) else (target.id if isinstance(target, ast.Name) else None)
+                dec_name = (
+                    target.attr
+                    if isinstance(target, ast.Attribute)
+                    else (target.id if isinstance(target, ast.Name) else None)
+                )
                 if _has_auth_hint(dec_name):
                     return True
         elif isinstance(node, ast.Call):

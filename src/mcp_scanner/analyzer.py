@@ -14,8 +14,8 @@ Approach
 4. For resource functions, flag names that look like debug/log/admin
    endpoints regardless of taint, since the risk is exposure of the
    resource itself.
-5. One-hop cross-file resolution: if a tainted tool parameter is passed
-   into a call to a function imported from a sibling file in the same
+5. One-hop local resolution: if a tainted tool parameter is passed into a
+   same-file helper or a function imported from a sibling file in the same
    local package (`import x`, `from . import x`, `from .x import y`, or a
    flat `from x import y` where `x.py` sits next to the file being
    scanned), the callee's matching parameter is treated as tainted too, and
@@ -66,7 +66,19 @@ DESERIALIZE_SINKS = {
     ("marshal", "loads"),
 }
 
-SENSITIVE_RESOURCE_KEYWORDS = ("debug", "log", "admin", "internal", "secret", "config", "token", "auth", "credential", "confidential", "private")
+SENSITIVE_RESOURCE_KEYWORDS = (
+    "debug",
+    "log",
+    "admin",
+    "internal",
+    "secret",
+    "config",
+    "token",
+    "auth",
+    "credential",
+    "confidential",
+    "private",
+)
 
 SECRET_PATTERNS = [
     (r"AKIA[0-9A-Z]{16}", "AWS access key"),
@@ -89,7 +101,7 @@ class Finding:
     # _check_one_hop_function(). report.py surfaces this explicitly rather
     # than silently reporting a line number that doesn't match the file the
     # user asked to scan.
-    file: str = None
+    file: str | None = None
     severity: str = field(init=False)
     saif_category: str = field(init=False)
     saif_code: str = field(init=False)
@@ -141,6 +153,43 @@ def _names_in_subtree(node, tainted_names):
         if isinstance(child, ast.Name) and child.id in tainted_names:
             return True
     return False
+
+
+def _is_string_built_from_tainted(query_arg, function_node, tainted_names):
+    """Return whether a SQL query argument is a tainted f-string or concat.
+
+    A query is commonly assigned to a local variable before execute(), so
+    follow simple assignments in the current function as well as inspecting
+    the argument expression itself. This is deliberately narrower than the
+    general taint check: a bare tainted value is not necessarily a SQL query.
+    """
+    seen_names = set()
+
+    def is_built(expr):
+        if isinstance(expr, ast.JoinedStr):
+            return _names_in_subtree(expr, tainted_names)
+        if isinstance(expr, ast.BinOp) and isinstance(expr.op, ast.Add):
+            return _names_in_subtree(expr, tainted_names)
+        if not isinstance(expr, ast.Name) or expr.id in seen_names:
+            return False
+        seen_names.add(expr.id)
+        for stmt in ast.walk(function_node):
+            values: list[ast.expr] = []
+            if isinstance(stmt, ast.Assign):
+                if any(isinstance(target, ast.Name) and target.id == expr.id for target in stmt.targets):
+                    values.append(stmt.value)
+            elif (
+                isinstance(stmt, ast.AnnAssign)
+                and isinstance(stmt.target, ast.Name)
+                and stmt.target.id == expr.id
+                and stmt.value is not None
+            ):
+                values.append(stmt.value)
+            if any(value is not None and is_built(value) for value in values):
+                return True
+        return False
+
+    return is_built(query_arg)
 
 
 def _has_shell_true(call_node):
@@ -284,6 +333,7 @@ def _find_sink_findings(node, tainted):
         if not isinstance(child, ast.Call):
             continue
         module, attr = _call_target(child)
+        sql_method = child.func.attr if isinstance(child.func, ast.Attribute) else None
         if (module, attr) in SHELL_SINKS:
             sensitive_capabilities.add("process")
             tainted_reaches = any(_names_in_subtree(a, tainted) for a in child.args) or any(
@@ -299,6 +349,20 @@ def _find_sink_findings(node, tainted):
                 detail = f"tainted parameter reaches {module}.{attr}("
                 detail += "shell=True)" if shell_true else ")"
                 findings.append(Finding("MCP001", child.lineno, node.name, detail))
+        elif sql_method in {"execute", "executemany"}:
+            # Parameterized database APIs keep the query template separate
+            # from user-controlled values, e.g. cursor.execute("... %s ...",
+            # (value,)). Only a single query argument can send a string-built
+            # query to the database parser directly.
+            if len(child.args) == 1 and _is_string_built_from_tainted(child.args[0], node, tainted):
+                findings.append(
+                    Finding(
+                        "MCP008",
+                        child.lineno,
+                        node.name,
+                        f"tainted parameter reaches .{sql_method}() in a string-built SQL query",
+                    )
+                )
         elif (module, attr) in EVAL_SINKS:
             tainted_here = any(_names_in_subtree(a, tainted) for a in child.args)
             findings.append(
@@ -306,7 +370,8 @@ def _find_sink_findings(node, tainted):
                     "MCP003",
                     child.lineno,
                     node.name,
-                    f"{attr}() call" + (" reachable from tool parameter" if tainted_here else " present in tool function"),
+                    f"{attr}() call"
+                    + (" reachable from tool parameter" if tainted_here else " present in tool function"),
                 )
             )
         elif (module, attr) in FILE_SINKS:
@@ -336,21 +401,21 @@ def _find_sink_findings(node, tainted):
 
 
 class MCPAnalyzer(ast.NodeVisitor):
-    def __init__(self, source: str, file_path: str = None):
+    def __init__(self, source: str, file_path: str | None = None):
         self.source = source
         # Needed to resolve local imports relative to this file's directory.
         # Without it (e.g. a caller that hands MCPAnalyzer an inline AST
         # rather than a real file), one-hop cross-file resolution simply
         # doesn't run -- see _check_cross_file_calls().
         self.file_path = file_path
-        self.findings = []
-        self._processed_tool_ids = set()
-        self._processed_resource_ids = set()
-        self._own_tree = None
-        self._local_imports = None
-        self._local_from_imports = None
-        self._file_cache = {}
-        self._hop_seen = set()
+        self.findings: list[Finding] = []
+        self._processed_tool_ids: set[int] = set()
+        self._processed_resource_ids: set[int] = set()
+        self._own_tree: ast.Module | None = None
+        self._local_imports: dict[str, str] | None = None
+        self._local_from_imports: dict[str, tuple[str, str]] | None = None
+        self._file_cache: dict[str, ast.Module | None] = {}
+        self._hop_seen: set[tuple[str, str, frozenset[str]]] = set()
 
     def visit_Module(self, node):
         self._own_tree = node
@@ -471,9 +536,7 @@ class MCPAnalyzer(ast.NodeVisitor):
                 if stmt.orelse:
                     continue
                 touches_tainted = _names_in_subtree(stmt.test, tainted)
-                exits_early = any(
-                    isinstance(s, (ast.Raise, ast.Return)) for s in stmt.body
-                )
+                exits_early = any(isinstance(s, (ast.Raise, ast.Return)) for s in stmt.body)
                 if touches_tainted and exits_early:
                     for n in ast.walk(stmt.test):
                         if isinstance(n, ast.Name) and n.id in tainted:
@@ -501,6 +564,10 @@ class MCPAnalyzer(ast.NodeVisitor):
 
     def _ensure_local_imports(self):
         if self._local_imports is not None:
+            return
+        if self.file_path is None:
+            self._local_imports = {}
+            self._local_from_imports = {}
             return
         tree = self._own_tree
         if tree is None:
@@ -534,13 +601,15 @@ class MCPAnalyzer(ast.NodeVisitor):
         _collect_local_imports() understands.
         """
         self._ensure_local_imports()
+        local_imports = self._local_imports or {}
+        local_from_imports = self._local_from_imports or {}
         func = call_node.func
         if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
-            target_path = self._local_imports.get(func.value.id)
+            target_path = local_imports.get(func.value.id)
             if target_path:
                 return self._resolve_function_in_file(target_path, func.attr)
         elif isinstance(func, ast.Name):
-            target = self._local_from_imports.get(func.id)
+            target = local_from_imports.get(func.id)
             if target:
                 target_path, real_name = target
                 return self._resolve_function_in_file(target_path, real_name)
@@ -563,28 +632,45 @@ class MCPAnalyzer(ast.NodeVisitor):
         return tainted_params
 
     def _check_cross_file_calls(self, node, tainted):
-        """One-hop cross-file resolution: for each call in `node`'s body to
-        a locally-importable function, if a tainted argument reaches it,
-        check that function's own body for sinks -- and stop there. This
-        deliberately does not call itself again on the callee, so a sink
+        """Resolve one local call hop, either across a sibling-file import or
+        into a same-module helper, then check the callee for sinks and stop.
+
+        This deliberately does not call itself again on the callee, so a sink
         two calls away from the original tool parameter is out of scope by
         design; see the module docstring.
         """
-        if self.file_path is None:
-            return
+        functions_by_name = _collect_functions_by_name(self._own_tree)
+        own_path = os.path.abspath(self.file_path) if self.file_path else "<same-file>"
         for child in ast.walk(node):
             if not isinstance(child, ast.Call):
                 continue
-            resolution = self._resolve_local_call(child)
-            if resolution is None:
-                continue
-            target_path, callee_node = resolution
+            resolution = self._resolve_local_call(child) if self.file_path else None
+            if resolution is not None:
+                target_path, callee_node = resolution
+                resolution_kind = "import"
+            else:
+                # A bare call that was not imported may name a helper defined
+                # in this module. Resolve it with the same lightweight name
+                # lookup used for programmatic tool registration.
+                if not isinstance(child.func, ast.Name):
+                    continue
+                callee_node = functions_by_name.get(child.func.id)
+                if callee_node is None:
+                    continue
+                target_path = own_path
+                resolution_kind = "same-file"
             callee_tainted = self._map_tainted_args(child, callee_node, tainted)
             if not callee_tainted:
                 continue
-            self._check_one_hop_function(target_path, callee_node, callee_tainted, node.name)
+            self._check_one_hop_function(
+                target_path,
+                callee_node,
+                callee_tainted,
+                node.name,
+                resolution_kind,
+            )
 
-    def _check_one_hop_function(self, target_path, callee_node, callee_tainted, source_tool_name):
+    def _check_one_hop_function(self, target_path, callee_node, callee_tainted, source_tool_name, resolution_kind):
         key = (target_path, callee_node.name, frozenset(callee_tainted))
         if key in self._hop_seen:
             return
@@ -598,8 +684,15 @@ class MCPAnalyzer(ast.NodeVisitor):
         # correctly, which is explicitly out of scope for a one-hop pass.
         findings, _capabilities = _find_sink_findings(callee_node, tainted)
         for f in findings:
-            f.file = target_path
-            f.detail = f"[via one-hop import: tainted by {source_tool_name}() calling {callee_node.name}()] {f.detail}"
+            if resolution_kind == "import":
+                f.file = target_path
+                f.detail = (
+                    f"[via one-hop import: tainted by {source_tool_name}() calling {callee_node.name}()] {f.detail}"
+                )
+            else:
+                f.detail = (
+                    f"[via same-file helper: tainted by {source_tool_name}() calling {callee_node.name}()] {f.detail}"
+                )
         self.findings.extend(findings)
 
 

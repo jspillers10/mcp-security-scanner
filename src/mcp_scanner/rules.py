@@ -149,6 +149,24 @@ RULES = {
             "and never unpickle data from an untrusted source."
         ),
     ),
+    "MCP008": Rule(
+        rule_id="MCP008",
+        title="SQL injection via string-built query",
+        severity="high",
+        saif_category="Insecure Integrated Component",
+        saif_code="IIC",
+        description=(
+            "A tool function builds a SQL query string from a parameter and "
+            "passes it directly to execute()/executemany(). An attacker who "
+            "can influence the tool argument may be able to alter the query "
+            "the database parses."
+        ),
+        remediation=(
+            "Use the database driver's parameterized-query API: keep SQL as "
+            "a fixed template and pass untrusted values separately in its "
+            "parameter tuple or dictionary."
+        ),
+    ),
     # MCP1xx: tool/resource *description* heuristics ("Tool Poisoning").
     #
     # These are a different kind of finding from MCP00x: MCP00x looks at

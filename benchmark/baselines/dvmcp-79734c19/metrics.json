@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "corpus_id": "dvmcp-79734c19",
+  "scanner_source_tree_sha256": "9b548e3b2e9c690c6e3d951b6fc288fb1d89ac95a96e85df59505c709233614d",
+  "security": {
+    "overall": {
+      "tp": 35,
+      "fp": 3,
+      "fn": 10,
+      "precision": 0.921053,
+      "recall": 0.777778,
+      "f1": 0.843374
+    }
+  },
+  "readiness": {
+    "overall": {
+      "tp": 18,
+      "fp": 0,
+      "fn": 2,
+      "precision": 1.0,
+      "recall": 0.9,
+      "f1": 0.947368
+    }
+  },
+  "scanner_errors": 0
+}
