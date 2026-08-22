@@ -1,0 +1,5 @@
+tools=vulnerable_read,safe_read
+vulnerable_result=MCP_CANARY_ONLY
+safe_escape_result=BLOCKED
+safe_allowed_result=APPROVED_REPORT
+validation_status=PASS
