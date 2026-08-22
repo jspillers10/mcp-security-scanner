@@ -13,3 +13,4 @@ dist/
 benchmark/.corpora/
 benchmark/results/
 .tmp-dvmcp-*/
+.claude/settings.local.json

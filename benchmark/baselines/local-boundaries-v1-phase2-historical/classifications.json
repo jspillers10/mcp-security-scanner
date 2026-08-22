@@ -1,0 +1,125 @@
+{
+  "corpus_id": "local-boundaries-v1",
+  "excluded_cases": [
+    {
+      "case_id": "local-x-multi-hop",
+      "category": "unsupported_static_pattern",
+      "line": 10,
+      "path": "false_negative/multi_hop_dataflow.py",
+      "reason": "Known out-of-scope patterns are reported separately and do not become false negatives.",
+      "title": "Two-hop helper flow is a declared analyzer boundary",
+      "vulnerability_class": "multi-hop-command-injection"
+    },
+    {
+      "case_id": "local-x-aliased-sink",
+      "category": "unsupported_static_pattern",
+      "line": 10,
+      "path": "false_negative/aliased_dangerous_function.py",
+      "reason": "The fixture tracks a known limitation without distorting measured recall.",
+      "title": "Aliased dangerous function is a declared coverage boundary",
+      "vulnerability_class": "aliased-command-sink"
+    },
+    {
+      "case_id": "local-x-class-method",
+      "category": "unsupported_static_pattern",
+      "line": 11,
+      "path": "false_negative/class_method_sink.py",
+      "reason": "The fixture preserves a realistic object-oriented blind spot.",
+      "title": "Instance-method helper flow is a declared coverage boundary",
+      "vulnerability_class": "class-method-command-sink"
+    },
+    {
+      "case_id": "local-x-dynamic-description",
+      "category": "runtime_only",
+      "line": 8,
+      "path": "false_negative/dynamic_description.py",
+      "reason": "The benchmark never imports the fixture, so runtime-generated metadata remains outside scope.",
+      "title": "Generated decorator description is outside literal extraction",
+      "vulnerability_class": "dynamic-tool-description"
+    },
+    {
+      "case_id": "local-x-indirect-output",
+      "category": "unsupported_static_pattern",
+      "line": 8,
+      "path": "false_negative/indirect_prompt_output.py",
+      "reason": "This documents a high-value future rule without counting unsupported behavior as a miss.",
+      "title": "Untrusted retrieved content flowing to output is outside current rules",
+      "vulnerability_class": "indirect-prompt-injection"
+    },
+    {
+      "case_id": "local-x-runtime-mutation",
+      "category": "runtime_only",
+      "line": 8,
+      "path": "false_negative/runtime_mutation.py",
+      "reason": "A non-executing static benchmark records but does not score runtime mutation.",
+      "title": "Post-registration docstring mutation requires runtime state",
+      "vulnerability_class": "runtime-tool-mutation"
+    },
+    {
+      "case_id": "local-x-obfuscated-command",
+      "category": "unsupported_static_pattern",
+      "line": 10,
+      "path": "false_negative/obfuscated_command.py",
+      "reason": "Dynamic call-target recovery is intentionally outside the current lightweight analyzer.",
+      "title": "Dynamically selected command sink is a declared boundary",
+      "vulnerability_class": "obfuscated-command-sink"
+    }
+  ],
+  "readiness": {
+    "false_negatives": [],
+    "false_positives": [
+      {
+        "detail": "SSE/HTTP transport set up here, but no auth-related import, decorator, or call found anywhere in this file",
+        "function": null,
+        "id": "readiness-0001",
+        "line": 19,
+        "path": "false_positive/imported_auth/server.py",
+        "rule_id": "RDY002",
+        "safe_case_id": "local-safe-imported-auth",
+        "severity": "high",
+        "title": "No apparent authentication for SSE/HTTP transport"
+      }
+    ],
+    "matches": []
+  },
+  "schema_version": "1.0",
+  "security": {
+    "false_negatives": [],
+    "false_positives": [
+      {
+        "detail": "description contains model-directed imperative language ('you must'): 'You must'",
+        "function": "exchange_rate",
+        "id": "security-0001",
+        "line": 10,
+        "path": "false_positive/benign_imperative_description.py",
+        "rule_id": "MCP101",
+        "safe_case_id": "local-safe-benign-imperative",
+        "severity": "medium",
+        "title": "Model-directed imperative language in tool/resource description"
+      },
+      {
+        "detail": "description contains a long base64-looking blob (52 chars): 'VGhpcyBpcyBhIGxlZ2l0aW1h...'",
+        "function": "decode_fixture",
+        "id": "security-0002",
+        "line": 10,
+        "path": "false_positive/legitimate_base64_description.py",
+        "rule_id": "MCP103",
+        "safe_case_id": "local-safe-legitimate-base64",
+        "severity": "medium",
+        "title": "Suspicious base64-looking blob in tool/resource description"
+      },
+      {
+        "detail": "[registered via add_tool()/add_resource(), no decorator] tainted parameter reaches subprocess.run(shell=True)",
+        "function": "render_report",
+        "id": "security-0003",
+        "line": 16,
+        "path": "false_positive/registration_resemblance.py",
+        "rule_id": "MCP001",
+        "safe_case_id": "local-safe-registration-resemblance",
+        "severity": "critical",
+        "title": "Command injection via tool parameter"
+      }
+    ],
+    "matches": []
+  }
+}

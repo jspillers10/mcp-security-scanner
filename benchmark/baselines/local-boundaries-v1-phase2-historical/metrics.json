@@ -1,0 +1,169 @@
+{
+  "accuracy": null,
+  "accuracy_note": "Not calculated because the benchmark does not define an exhaustive true-negative universe.",
+  "corpus_id": "local-boundaries-v1",
+  "excluded_cases": 7,
+  "readiness": {
+    "by_rule": {
+      "RDY002": {
+        "f1": null,
+        "fn": 0,
+        "fp": 1,
+        "precision": 0.0,
+        "precision_ci95_wilson": [
+          0.0,
+          0.793451
+        ],
+        "recall": null,
+        "recall_ci95_wilson": null,
+        "tp": 0
+      }
+    },
+    "overall": {
+      "f1": null,
+      "fn": 0,
+      "fp": 1,
+      "precision": 0.0,
+      "precision_ci95_wilson": [
+        0.0,
+        0.793451
+      ],
+      "recall": null,
+      "recall_ci95_wilson": null,
+      "tp": 0
+    }
+  },
+  "scanner_errors": 0,
+  "schema_version": "1.0",
+  "security": {
+    "by_rule": {
+      "MCP001": {
+        "f1": null,
+        "fn": 0,
+        "fp": 1,
+        "precision": 0.0,
+        "precision_ci95_wilson": [
+          0.0,
+          0.793451
+        ],
+        "recall": null,
+        "recall_ci95_wilson": null,
+        "tp": 0
+      },
+      "MCP101": {
+        "f1": null,
+        "fn": 0,
+        "fp": 1,
+        "precision": 0.0,
+        "precision_ci95_wilson": [
+          0.0,
+          0.793451
+        ],
+        "recall": null,
+        "recall_ci95_wilson": null,
+        "tp": 0
+      },
+      "MCP103": {
+        "f1": null,
+        "fn": 0,
+        "fp": 1,
+        "precision": 0.0,
+        "precision_ci95_wilson": [
+          0.0,
+          0.793451
+        ],
+        "recall": null,
+        "recall_ci95_wilson": null,
+        "tp": 0
+      }
+    },
+    "overall": {
+      "f1": null,
+      "fn": 0,
+      "fp": 3,
+      "precision": 0.0,
+      "precision_ci95_wilson": [
+        0.0,
+        0.561497
+      ],
+      "recall": null,
+      "recall_ci95_wilson": null,
+      "tp": 0
+    }
+  },
+  "security_by_group": {
+    "code_vulnerability": {
+      "by_rule": {
+        "MCP001": {
+          "f1": null,
+          "fn": 0,
+          "fp": 1,
+          "precision": 0.0,
+          "precision_ci95_wilson": [
+            0.0,
+            0.793451
+          ],
+          "recall": null,
+          "recall_ci95_wilson": null,
+          "tp": 0
+        }
+      },
+      "overall": {
+        "f1": null,
+        "fn": 0,
+        "fp": 1,
+        "precision": 0.0,
+        "precision_ci95_wilson": [
+          0.0,
+          0.793451
+        ],
+        "recall": null,
+        "recall_ci95_wilson": null,
+        "tp": 0
+      }
+    },
+    "description_vulnerability": {
+      "by_rule": {
+        "MCP101": {
+          "f1": null,
+          "fn": 0,
+          "fp": 1,
+          "precision": 0.0,
+          "precision_ci95_wilson": [
+            0.0,
+            0.793451
+          ],
+          "recall": null,
+          "recall_ci95_wilson": null,
+          "tp": 0
+        },
+        "MCP103": {
+          "f1": null,
+          "fn": 0,
+          "fp": 1,
+          "precision": 0.0,
+          "precision_ci95_wilson": [
+            0.0,
+            0.793451
+          ],
+          "recall": null,
+          "recall_ci95_wilson": null,
+          "tp": 0
+        }
+      },
+      "overall": {
+        "f1": null,
+        "fn": 0,
+        "fp": 2,
+        "precision": 0.0,
+        "precision_ci95_wilson": [
+          0.0,
+          0.65762
+        ],
+        "recall": null,
+        "recall_ci95_wilson": null,
+        "tp": 0
+      }
+    }
+  }
+}

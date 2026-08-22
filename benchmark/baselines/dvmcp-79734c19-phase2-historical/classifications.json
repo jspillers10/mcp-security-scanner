@@ -1,0 +1,803 @@
+{
+  "corpus_id": "dvmcp-79734c19",
+  "excluded_cases": [
+    {
+      "case_id": "dvmcp-x01-reflected-prompt-input",
+      "category": "unsupported_static_pattern",
+      "line": 20,
+      "path": "challenges/easy/challenge1/server.py",
+      "reason": "No current MCP rule models arbitrary reflected text as a prompt-injection sink, so it is reported but not counted as a false negative.",
+      "title": "Reflected prompt injection is outside current static rules",
+      "vulnerability_class": "direct-prompt-injection"
+    },
+    {
+      "case_id": "dvmcp-x04-runtime-rug-pull",
+      "category": "runtime_only",
+      "line": 82,
+      "path": "challenges/medium/challenge4/server.py",
+      "reason": "The benchmark never executes corpus code, and current static description rules inspect registered literals only.",
+      "title": "Runtime docstring mutation is outside static description extraction",
+      "vulnerability_class": "runtime-tool-mutation"
+    },
+    {
+      "case_id": "dvmcp-x05-cross-server-shadowing",
+      "category": "runtime_only",
+      "line": 21,
+      "path": "challenges/medium/challenge5/server.py",
+      "reason": "Static per-file scanning cannot establish client collision behavior without executing or connecting to servers.",
+      "title": "Cross-server tool collision requires configuration or runtime enumeration",
+      "vulnerability_class": "tool-shadowing"
+    },
+    {
+      "case_id": "dvmcp-x06-indirect-prompt-output",
+      "category": "unsupported_static_pattern",
+      "line": 129,
+      "path": "challenges/medium/challenge6/server.py",
+      "reason": "Current rules inspect tool descriptions and selected code sinks, not untrusted content flowing into model-visible output.",
+      "title": "Untrusted document content returned to a model is outside current rules",
+      "vulnerability_class": "indirect-prompt-injection"
+    },
+    {
+      "case_id": "dvmcp-x07-token-response-leak",
+      "category": "unsupported_static_pattern",
+      "line": 57,
+      "path": "challenges/medium/challenge7/server.py",
+      "reason": "MCP004 scores the hardcoded store, but no current rule traces secret values into arbitrary returns.",
+      "title": "Tokens returned in tool output are outside current disclosure rules",
+      "vulnerability_class": "token-disclosure-in-output"
+    },
+    {
+      "case_id": "dvmcp-x08-python-file-execution",
+      "category": "unsupported_static_pattern",
+      "line": 53,
+      "path": "challenges/hard/challenge8/server.py",
+      "reason": "MCP003 currently covers eval and exec, while MCP001 covers shell injection; this composed file-to-interpreter flow is outside both declared implementations.",
+      "title": "Writing parameter data to Python and launching it is outside current sink models",
+      "vulnerability_class": "arbitrary-code-execution"
+    },
+    {
+      "case_id": "dvmcp-x10-token-response-leak",
+      "category": "unsupported_static_pattern",
+      "line": 142,
+      "path": "challenges/hard/challenge10/server.py",
+      "reason": "No current rule traces sensitive values into general tool return text.",
+      "title": "Authentication token returned after login is outside current output tracing",
+      "vulnerability_class": "token-disclosure-in-output"
+    },
+    {
+      "case_id": "dvmcp-x10-renamed-shadow-tool",
+      "category": "runtime_only",
+      "line": 273,
+      "path": "challenges/hard/challenge10/server.py",
+      "reason": "The poisoned description is scored separately, but collision behavior is not present in this static file.",
+      "title": "Renamed shadow demonstration does not establish a runtime name collision",
+      "vulnerability_class": "tool-shadowing"
+    }
+  ],
+  "readiness": {
+    "false_negatives": [
+      {
+        "case_id": "dvmcp-r07-auth",
+        "line": 231,
+        "path": "challenges/medium/challenge7/server.py",
+        "rule_id": "RDY002",
+        "title": "Challenge 7 HTTP transport has no authentication despite token-shaped identifiers",
+        "vulnerability_class": "missing-transport-auth-hint"
+      },
+      {
+        "case_id": "dvmcp-r10-auth",
+        "line": 376,
+        "path": "challenges/hard/challenge10/server.py",
+        "rule_id": "RDY002",
+        "title": "Challenge 10 HTTP transport has no authentication despite auth-shaped functions",
+        "vulnerability_class": "missing-transport-auth-hint"
+      }
+    ],
+    "false_positives": [],
+    "matches": [
+      {
+        "actual_line": 63,
+        "case_id": "dvmcp-r01-auth",
+        "expected_line": 63,
+        "finding_id": "readiness-0002",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge1/server.py",
+        "rule_id": "RDY002",
+        "severity": "high",
+        "vulnerability_class": "missing-transport-auth-hint"
+      },
+      {
+        "actual_line": 63,
+        "case_id": "dvmcp-r01-bind",
+        "expected_line": 63,
+        "finding_id": "readiness-0001",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge1/server.py",
+        "rule_id": "RDY001",
+        "severity": "medium",
+        "vulnerability_class": "all-interface-bind"
+      },
+      {
+        "actual_line": 79,
+        "case_id": "dvmcp-r02-auth",
+        "expected_line": 79,
+        "finding_id": "readiness-0004",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge2/server.py",
+        "rule_id": "RDY002",
+        "severity": "high",
+        "vulnerability_class": "missing-transport-auth-hint"
+      },
+      {
+        "actual_line": 79,
+        "case_id": "dvmcp-r02-bind",
+        "expected_line": 79,
+        "finding_id": "readiness-0003",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge2/server.py",
+        "rule_id": "RDY001",
+        "severity": "medium",
+        "vulnerability_class": "all-interface-bind"
+      },
+      {
+        "actual_line": 155,
+        "case_id": "dvmcp-r03-auth",
+        "expected_line": 155,
+        "finding_id": "readiness-0006",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge3/server.py",
+        "rule_id": "RDY002",
+        "severity": "high",
+        "vulnerability_class": "missing-transport-auth-hint"
+      },
+      {
+        "actual_line": 155,
+        "case_id": "dvmcp-r03-bind",
+        "expected_line": 155,
+        "finding_id": "readiness-0005",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge3/server.py",
+        "rule_id": "RDY001",
+        "severity": "medium",
+        "vulnerability_class": "all-interface-bind"
+      },
+      {
+        "actual_line": 141,
+        "case_id": "dvmcp-r04-auth",
+        "expected_line": 141,
+        "finding_id": "readiness-0013",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge4/server.py",
+        "rule_id": "RDY002",
+        "severity": "high",
+        "vulnerability_class": "missing-transport-auth-hint"
+      },
+      {
+        "actual_line": 141,
+        "case_id": "dvmcp-r04-bind",
+        "expected_line": 141,
+        "finding_id": "readiness-0012",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge4/server.py",
+        "rule_id": "RDY001",
+        "severity": "medium",
+        "vulnerability_class": "all-interface-bind"
+      },
+      {
+        "actual_line": 207,
+        "case_id": "dvmcp-r05-auth",
+        "expected_line": 207,
+        "finding_id": "readiness-0015",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "RDY002",
+        "severity": "high",
+        "vulnerability_class": "missing-transport-auth-hint"
+      },
+      {
+        "actual_line": 207,
+        "case_id": "dvmcp-r05-bind",
+        "expected_line": 207,
+        "finding_id": "readiness-0014",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "RDY001",
+        "severity": "medium",
+        "vulnerability_class": "all-interface-bind"
+      },
+      {
+        "actual_line": 231,
+        "case_id": "dvmcp-r06-auth",
+        "expected_line": 231,
+        "finding_id": "readiness-0017",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge6/server.py",
+        "rule_id": "RDY002",
+        "severity": "high",
+        "vulnerability_class": "missing-transport-auth-hint"
+      },
+      {
+        "actual_line": 231,
+        "case_id": "dvmcp-r06-bind",
+        "expected_line": 231,
+        "finding_id": "readiness-0016",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge6/server.py",
+        "rule_id": "RDY001",
+        "severity": "medium",
+        "vulnerability_class": "all-interface-bind"
+      },
+      {
+        "actual_line": 231,
+        "case_id": "dvmcp-r07-bind",
+        "expected_line": 231,
+        "finding_id": "readiness-0018",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge7/server.py",
+        "rule_id": "RDY001",
+        "severity": "medium",
+        "vulnerability_class": "all-interface-bind"
+      },
+      {
+        "actual_line": 171,
+        "case_id": "dvmcp-r08-auth",
+        "expected_line": 171,
+        "finding_id": "readiness-0009",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge8/server.py",
+        "rule_id": "RDY002",
+        "severity": "high",
+        "vulnerability_class": "missing-transport-auth-hint"
+      },
+      {
+        "actual_line": 171,
+        "case_id": "dvmcp-r08-bind",
+        "expected_line": 171,
+        "finding_id": "readiness-0008",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge8/server.py",
+        "rule_id": "RDY001",
+        "severity": "medium",
+        "vulnerability_class": "all-interface-bind"
+      },
+      {
+        "actual_line": 243,
+        "case_id": "dvmcp-r09-auth",
+        "expected_line": 243,
+        "finding_id": "readiness-0011",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge9/server.py",
+        "rule_id": "RDY002",
+        "severity": "high",
+        "vulnerability_class": "missing-transport-auth-hint"
+      },
+      {
+        "actual_line": 243,
+        "case_id": "dvmcp-r09-bind",
+        "expected_line": 243,
+        "finding_id": "readiness-0010",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge9/server.py",
+        "rule_id": "RDY001",
+        "severity": "medium",
+        "vulnerability_class": "all-interface-bind"
+      },
+      {
+        "actual_line": 376,
+        "case_id": "dvmcp-r10-bind",
+        "expected_line": 376,
+        "finding_id": "readiness-0007",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge10/server.py",
+        "rule_id": "RDY001",
+        "severity": "medium",
+        "vulnerability_class": "all-interface-bind"
+      }
+    ]
+  },
+  "schema_version": "1.0",
+  "security": {
+    "false_negatives": [
+      {
+        "case_id": "dvmcp-c03-hardcoded-credentials",
+        "line": 44,
+        "path": "challenges/easy/challenge3/server.py",
+        "rule_id": "MCP004",
+        "title": "Private-file credential bundle is hardcoded",
+        "vulnerability_class": "hardcoded-secret"
+      },
+      {
+        "case_id": "dvmcp-c05-combined-hardcoded-secrets",
+        "line": 118,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP004",
+        "title": "Combined resource secret bundle is hardcoded",
+        "vulnerability_class": "hardcoded-secret"
+      },
+      {
+        "case_id": "dvmcp-c05-trusted-hardcoded-secrets",
+        "line": 12,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP004",
+        "title": "Trusted resource secret bundle is hardcoded",
+        "vulnerability_class": "hardcoded-secret"
+      },
+      {
+        "case_id": "dvmcp-c06-hardcoded-document-keys",
+        "line": 13,
+        "path": "challenges/medium/challenge6/server.py",
+        "rule_id": "MCP004",
+        "title": "Internal memo API keys are hardcoded",
+        "vulnerability_class": "hardcoded-secret"
+      },
+      {
+        "case_id": "dvmcp-c06-hardcoded-resource-keys",
+        "line": 55,
+        "path": "challenges/medium/challenge6/server.py",
+        "rule_id": "MCP004",
+        "title": "API resource key bundle is hardcoded",
+        "vulnerability_class": "hardcoded-secret"
+      },
+      {
+        "case_id": "dvmcp-c07-hardcoded-tokens",
+        "line": 14,
+        "path": "challenges/medium/challenge7/server.py",
+        "rule_id": "MCP004",
+        "title": "External-service tokens are hardcoded",
+        "vulnerability_class": "hardcoded-secret"
+      },
+      {
+        "case_id": "dvmcp-c08-arbitrary-log-path",
+        "line": 140,
+        "path": "challenges/hard/challenge8/server.py",
+        "rule_id": "MCP002",
+        "title": "Log path parameter controls an arbitrary file read",
+        "vulnerability_class": "path-traversal"
+      },
+      {
+        "case_id": "dvmcp-c08-shell-command",
+        "line": 110,
+        "path": "challenges/hard/challenge8/server.py",
+        "rule_id": "MCP001",
+        "title": "Tool parameter reaches a shell after an incomplete denylist",
+        "vulnerability_class": "command-injection"
+      },
+      {
+        "case_id": "dvmcp-c10-arbitrary-log-path",
+        "line": 345,
+        "path": "challenges/hard/challenge10/server.py",
+        "rule_id": "MCP002",
+        "title": "Log analyzer path controls an arbitrary file read",
+        "vulnerability_class": "path-traversal"
+      },
+      {
+        "case_id": "dvmcp-c10-hardcoded-tokens",
+        "line": 44,
+        "path": "challenges/hard/challenge10/server.py",
+        "rule_id": "MCP004",
+        "title": "Authentication tokens are hardcoded",
+        "vulnerability_class": "hardcoded-secret"
+      }
+    ],
+    "false_positives": [
+      {
+        "detail": "tainted parameter reaches subprocess.check_output(shell=True)",
+        "function": "run_system_diagnostic",
+        "id": "security-0009",
+        "line": 265,
+        "path": "challenges/hard/challenge10/server.py",
+        "rule_id": "MCP001",
+        "safe_case_id": "dvmcp-c10-fixed-command-map",
+        "severity": "critical",
+        "title": "Command injection via tool parameter"
+      },
+      {
+        "detail": "eval() call reachable from tool parameter",
+        "function": "calculate",
+        "id": "security-0026",
+        "line": 95,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP003",
+        "severity": "critical",
+        "title": "Dynamic code execution (eval/exec) reachable from a tool"
+      },
+      {
+        "detail": "eval() call reachable from tool parameter",
+        "function": "calculate",
+        "id": "security-0028",
+        "line": 104,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP003",
+        "severity": "critical",
+        "title": "Dynamic code execution (eval/exec) reachable from a tool"
+      }
+    ],
+    "matches": [
+      {
+        "actual_line": 16,
+        "case_id": "dvmcp-c01-hardcoded-credentials",
+        "expected_line": 10,
+        "finding_id": "security-0001",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge1/server.py",
+        "rule_id": "MCP004",
+        "severity": "high",
+        "vulnerability_class": "hardcoded-secret"
+      },
+      {
+        "actual_line": 8,
+        "case_id": "dvmcp-c01-sensitive-resource",
+        "expected_line": 8,
+        "finding_id": "security-0002",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge1/server.py",
+        "rule_id": "MCP005",
+        "severity": "high",
+        "vulnerability_class": "sensitive-resource-exposure"
+      },
+      {
+        "actual_line": 19,
+        "case_id": "dvmcp-c02-confidential-resource",
+        "expected_line": 19,
+        "finding_id": "security-0003",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge2/server.py",
+        "rule_id": "MCP005",
+        "severity": "high",
+        "vulnerability_class": "sensitive-resource-exposure"
+      },
+      {
+        "actual_line": 33,
+        "case_id": "dvmcp-c02-poisoned-company-data",
+        "expected_line": 33,
+        "finding_id": "security-0004",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge2/server.py",
+        "rule_id": "MCP101",
+        "severity": "medium",
+        "vulnerability_class": "tool-poisoning"
+      },
+      {
+        "actual_line": 59,
+        "case_id": "dvmcp-c02-poisoned-search",
+        "expected_line": 59,
+        "finding_id": "security-0005",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge2/server.py",
+        "rule_id": "MCP101",
+        "severity": "medium",
+        "vulnerability_class": "tool-poisoning"
+      },
+      {
+        "actual_line": 94,
+        "case_id": "dvmcp-c03-arbitrary-path-open",
+        "expected_line": 94,
+        "finding_id": "security-0006",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge3/server.py",
+        "rule_id": "MCP002",
+        "severity": "high",
+        "vulnerability_class": "path-traversal"
+      },
+      {
+        "actual_line": 99,
+        "case_id": "dvmcp-c03-prefixed-path-traversal",
+        "expected_line": 99,
+        "finding_id": "security-0007",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge3/server.py",
+        "rule_id": "MCP002",
+        "severity": "high",
+        "vulnerability_class": "path-traversal"
+      },
+      {
+        "actual_line": 68,
+        "case_id": "dvmcp-c03-private-resource",
+        "expected_line": 68,
+        "finding_id": "security-0008",
+        "line_distance": 0,
+        "path": "challenges/easy/challenge3/server.py",
+        "rule_id": "MCP005",
+        "severity": "high",
+        "vulnerability_class": "sensitive-resource-exposure"
+      },
+      {
+        "actual_line": 38,
+        "case_id": "dvmcp-c04-hardcoded-cloud-keys",
+        "expected_line": 32,
+        "finding_id": "security-0023",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge4/server.py",
+        "rule_id": "MCP004",
+        "severity": "high",
+        "vulnerability_class": "hardcoded-secret"
+      },
+      {
+        "actual_line": 30,
+        "case_id": "dvmcp-c04-sensitive-resource",
+        "expected_line": 30,
+        "finding_id": "security-0024",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge4/server.py",
+        "rule_id": "MCP005",
+        "severity": "high",
+        "vulnerability_class": "sensitive-resource-exposure"
+      },
+      {
+        "actual_line": 116,
+        "case_id": "dvmcp-c05-combined-secrets-resource",
+        "expected_line": 116,
+        "finding_id": "security-0032",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP005",
+        "severity": "high",
+        "vulnerability_class": "sensitive-resource-exposure"
+      },
+      {
+        "actual_line": 187,
+        "case_id": "dvmcp-c05-enhanced-eval-clean",
+        "expected_line": 187,
+        "finding_id": "security-0029",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP003",
+        "severity": "critical",
+        "vulnerability_class": "dynamic-code-execution"
+      },
+      {
+        "actual_line": 196,
+        "case_id": "dvmcp-c05-enhanced-eval-expression",
+        "expected_line": 196,
+        "finding_id": "security-0030",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP003",
+        "severity": "critical",
+        "vulnerability_class": "dynamic-code-execution"
+      },
+      {
+        "actual_line": 95,
+        "case_id": "dvmcp-c05-eval-clean-expression",
+        "expected_line": 95,
+        "finding_id": "security-0025",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP003",
+        "severity": "critical",
+        "vulnerability_class": "dynamic-code-execution"
+      },
+      {
+        "actual_line": 104,
+        "case_id": "dvmcp-c05-eval-expression",
+        "expected_line": 104,
+        "finding_id": "security-0027",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP003",
+        "severity": "critical",
+        "vulnerability_class": "dynamic-code-execution"
+      },
+      {
+        "actual_line": 68,
+        "case_id": "dvmcp-c05-poisoned-calculate",
+        "expected_line": 68,
+        "finding_id": "security-0033",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP101",
+        "severity": "medium",
+        "vulnerability_class": "tool-poisoning"
+      },
+      {
+        "actual_line": 160,
+        "case_id": "dvmcp-c05-poisoned-enhanced-calculate",
+        "expected_line": 160,
+        "finding_id": "security-0034",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP101",
+        "severity": "medium",
+        "vulnerability_class": "tool-poisoning"
+      },
+      {
+        "actual_line": 10,
+        "case_id": "dvmcp-c05-trusted-secrets-resource",
+        "expected_line": 10,
+        "finding_id": "security-0031",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge5/server.py",
+        "rule_id": "MCP005",
+        "severity": "high",
+        "vulnerability_class": "sensitive-resource-exposure"
+      },
+      {
+        "actual_line": 53,
+        "case_id": "dvmcp-c06-api-key-resource",
+        "expected_line": 53,
+        "finding_id": "security-0038",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge6/server.py",
+        "rule_id": "MCP005",
+        "severity": "high",
+        "vulnerability_class": "sensitive-resource-exposure"
+      },
+      {
+        "actual_line": 100,
+        "case_id": "dvmcp-c06-document-path",
+        "expected_line": 100,
+        "finding_id": "security-0035",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge6/server.py",
+        "rule_id": "MCP002",
+        "severity": "high",
+        "vulnerability_class": "path-traversal"
+      },
+      {
+        "actual_line": 121,
+        "case_id": "dvmcp-c06-upload-read-path",
+        "expected_line": 121,
+        "finding_id": "security-0036",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge6/server.py",
+        "rule_id": "MCP002",
+        "severity": "high",
+        "vulnerability_class": "path-traversal"
+      },
+      {
+        "actual_line": 146,
+        "case_id": "dvmcp-c06-upload-write-path",
+        "expected_line": 146,
+        "finding_id": "security-0037",
+        "line_distance": 0,
+        "path": "challenges/medium/challenge6/server.py",
+        "rule_id": "MCP002",
+        "severity": "high",
+        "vulnerability_class": "path-traversal"
+      },
+      {
+        "actual_line": 24,
+        "case_id": "dvmcp-c08-hardcoded-credentials",
+        "expected_line": 15,
+        "finding_id": "security-0014",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge8/server.py",
+        "rule_id": "MCP004",
+        "severity": "high",
+        "vulnerability_class": "hardcoded-secret"
+      },
+      {
+        "actual_line": 145,
+        "case_id": "dvmcp-c09-diagnostic-capabilities",
+        "expected_line": 145,
+        "finding_id": "security-0022",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge9/server.py",
+        "rule_id": "MCP006",
+        "severity": "medium",
+        "vulnerability_class": "excessive-tool-capability"
+      },
+      {
+        "actual_line": 189,
+        "case_id": "dvmcp-c09-diagnostic-command",
+        "expected_line": 189,
+        "finding_id": "security-0018",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge9/server.py",
+        "rule_id": "MCP001",
+        "severity": "critical",
+        "vulnerability_class": "command-injection"
+      },
+      {
+        "actual_line": 33,
+        "case_id": "dvmcp-c09-ping-capabilities",
+        "expected_line": 33,
+        "finding_id": "security-0019",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge9/server.py",
+        "rule_id": "MCP006",
+        "severity": "medium",
+        "vulnerability_class": "excessive-tool-capability"
+      },
+      {
+        "actual_line": 55,
+        "case_id": "dvmcp-c09-ping-command",
+        "expected_line": 55,
+        "finding_id": "security-0015",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge9/server.py",
+        "rule_id": "MCP001",
+        "severity": "critical",
+        "vulnerability_class": "command-injection"
+      },
+      {
+        "actual_line": 104,
+        "case_id": "dvmcp-c09-portscan-capabilities",
+        "expected_line": 104,
+        "finding_id": "security-0021",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge9/server.py",
+        "rule_id": "MCP006",
+        "severity": "medium",
+        "vulnerability_class": "excessive-tool-capability"
+      },
+      {
+        "actual_line": 127,
+        "case_id": "dvmcp-c09-portscan-command",
+        "expected_line": 127,
+        "finding_id": "security-0017",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge9/server.py",
+        "rule_id": "MCP001",
+        "severity": "critical",
+        "vulnerability_class": "command-injection"
+      },
+      {
+        "actual_line": 71,
+        "case_id": "dvmcp-c09-traceroute-capabilities",
+        "expected_line": 71,
+        "finding_id": "security-0020",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge9/server.py",
+        "rule_id": "MCP006",
+        "severity": "medium",
+        "vulnerability_class": "excessive-tool-capability"
+      },
+      {
+        "actual_line": 88,
+        "case_id": "dvmcp-c09-traceroute-command",
+        "expected_line": 88,
+        "finding_id": "security-0016",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge9/server.py",
+        "rule_id": "MCP001",
+        "severity": "critical",
+        "vulnerability_class": "command-injection"
+      },
+      {
+        "actual_line": 121,
+        "case_id": "dvmcp-c10-admin-resource",
+        "expected_line": 121,
+        "finding_id": "security-0011",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge10/server.py",
+        "rule_id": "MCP005",
+        "severity": "high",
+        "vulnerability_class": "sensitive-resource-exposure"
+      },
+      {
+        "actual_line": 36,
+        "case_id": "dvmcp-c10-hardcoded-system-config",
+        "expected_line": 16,
+        "finding_id": "security-0010",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge10/server.py",
+        "rule_id": "MCP004",
+        "severity": "high",
+        "vulnerability_class": "hardcoded-secret"
+      },
+      {
+        "actual_line": 196,
+        "case_id": "dvmcp-c10-profile-poisoning",
+        "expected_line": 196,
+        "finding_id": "security-0012",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge10/server.py",
+        "rule_id": "MCP101",
+        "severity": "medium",
+        "vulnerability_class": "tool-poisoning"
+      },
+      {
+        "actual_line": 299,
+        "case_id": "dvmcp-c10-status-poisoning",
+        "expected_line": 299,
+        "finding_id": "security-0013",
+        "line_distance": 0,
+        "path": "challenges/hard/challenge10/server.py",
+        "rule_id": "MCP101",
+        "severity": "medium",
+        "vulnerability_class": "tool-poisoning"
+      }
+    ]
+  }
+}
