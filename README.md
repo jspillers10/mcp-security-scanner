@@ -92,7 +92,7 @@ suppressions, and detection boundaries are in [docs/rules.md](docs/rules.md).
 
 ## SARIF and CI integration
 
-SARIF output follows version 2.1.0 and includes tool/version metadata, rule definitions,
+SARIF output conforms to SARIF 2.1.0 and includes tool/version metadata, rule definitions,
 severity, messages, normalized source paths, and line numbers when available. Readiness
 results carry `findingType: readiness` and SARIF `kind: review`; scan errors are execution
 notifications and are never converted into findings.
@@ -104,9 +104,9 @@ A minimal CI step after installing the package is:
   run: mcp-scanner src --format sarif -o results.sarif --fail-on high
 ```
 
-The repository's own [CI workflow](.github/workflows/ci.yml) tests supported Python
-versions and Windows compatibility, produces coverage, checks lint/format/type/security
-quality, builds wheel and source distributions, and smoke-tests the installed CLI.
+The repository has 199 tests. Each [CI run](.github/workflows/ci.yml) executes nine jobs
+covering Python 3.10 through 3.13, Windows compatibility, live integration, quality and
+security checks, coverage, and distribution build and installation validation.
 
 ## Live scanning
 
@@ -158,11 +158,22 @@ tool/resource descriptions, not runtime tool output or retrieved content.
 
 ## Research benchmark
 
-The pinned DVMCP subset currently measures 35 true positives, 3 false positives, and 10
-false negatives: precision 0.921, recall 0.778, and F1 0.843. Infrastructure readiness is
-reported separately at 18 TP, 0 FP, and 2 FN. These results come from one curated lab
-corpus and a single initial adjudication, so they are diagnostic rather than estimates of
-real-world scanner performance.
+The Phase 2 historical baseline and final Phase 3 candidate were measured against the
+same pinned DVMCP educational corpus.
+
+| Measurement | Phase 2 historical security | Phase 3 candidate security | Phase 3 candidate readiness |
+|---|---:|---:|---:|
+| TP | 35 | 45 | 20 |
+| FP | 3 | 1 | 0 |
+| FN | 10 | 0 | 0 |
+| Precision | 0.921053 | 0.978261 | 1.000000 |
+| Recall | 0.777778 | 1.000000 | 1.000000 |
+| F1 | 0.843374 | 0.989011 | 1.000000 |
+
+These measurements apply only to the pinned educational corpus and are diagnostic
+measurements, not estimates of production scanner performance. Ground truth has not
+received independent consensus review. See the [complete final Phase 3 results](docs/phase3-results.md)
+and the [benchmark methodology and historical baseline](docs/benchmark.md).
 
 ```bash
 python -m benchmark.run --corpus dvmcp-79734c19 --retrieve --output-dir benchmark/results/dvmcp-79734c19 --baseline benchmark/baselines/dvmcp-79734c19/metrics.json
@@ -173,6 +184,21 @@ writes deterministic raw results and metrics plus volatile environment/timing me
 and returns nonzero for harness failures or a requested baseline regression. It never
 imports or launches corpus code. Full scope, matching, uncertainty, and licensing caveats
 are in [docs/benchmark.md](docs/benchmark.md).
+
+## Runtime validation
+
+Two project-owned FastMCP stdio labs validate controlled MCP001 and MCP002 behaviors.
+Each lab includes a positive result, a corrected negative control, a legitimate control,
+deterministic evidence, isolation details, and SHA-256 artifact hashes.
+
+The containers run without networking or host mounts, as a non-root user, with a
+read-only root filesystem and restricted PID, memory, CPU, and capability settings. See
+the [runtime-validation overview](runtime_lab/README.md), the
+[MCP001 command-validation result](runtime_lab/command_validation/results.md), and the
+[MCP002 path-validation result](runtime_lab/path_validation/results.md).
+
+These two controlled labs do not establish production exploitability, production
+readiness, or general scanner performance.
 
 ## Development
 
@@ -202,7 +228,7 @@ The vulnerable examples in this repository and DVMCP are intentional lab materia
 real-world vulnerability claims. Current benchmark precision and recall apply only to the
 pinned, adjudicated scope and must not be generalized to production MCP servers.
 Historical observations, measured failures, uncertainty, and known misses are retained in
-[docs/benchmark.md](docs/benchmark.md).
+the [benchmark methodology](docs/benchmark.md) and [Phase 3 results](docs/phase3-results.md).
 
 ## License
 

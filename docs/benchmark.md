@@ -189,9 +189,13 @@ SHA-256 over scanner source files. A dirty tree is therefore visible rather than
 misrepresented as the recorded commit alone. The raw result also hashes the harness,
 manifest, and exact ground-truth document used for the classification.
 
-## 10. Measured results
+## 10. Measured results, Phase 2 historical baseline
 
-The measured static result at the pinned corpus is:
+This section preserves the Phase 2 historical baseline. It is not the latest candidate
+measurement. See the [final Phase 3 candidate results](phase3-results.md) for the later
+scanner measurement and its remaining limitations.
+
+The Phase 2 measured static result at the pinned corpus is:
 
 | Group | TP | FP | FN | Precision | Recall | F1 |
 |---|---:|---:|---:|---:|---:|---:|
@@ -241,11 +245,12 @@ observations, and readiness counts over both classic and SSE variants. Those run
 corpus commit, file hashes, dependency record, command, raw result, and machine-readable
 ground truth. They are therefore not a comparable baseline.
 
-The current count of 38 security findings is not an improvement claim over the historical
+The Phase 2 count of 38 security findings is not an improvement claim over the historical
 31. It differs because the scanner changed, duplicate sink findings remain visible, scope
 is now exact, and the present report distinguishes detections from correctness. The only
-valid current baseline is the versioned metric record produced from the pinned corpus and
-documented adjudication.
+valid comparable Phase 2 baseline is the versioned metric record produced from the pinned
+corpus and documented adjudication. The later candidate measurement is documented in the
+[Phase 3 results](phase3-results.md).
 
 ## 13. Limitations and future benchmark work
 
