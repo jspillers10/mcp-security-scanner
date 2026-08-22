@@ -1,0 +1,5 @@
+tools=intentionally_unsafe_shell,safe_diagnostic
+test_result=[SAFE_RUNTIME_MARKER]
+blocked_control=BLOCKED
+allowed_control=SERVICE_OK
+validation_status=PASS

@@ -1,2 +1,3 @@
 # Benchmark fixture hashes are byte-level, so keep their checkout form stable.
 benchmark/fixtures/** text eol=lf
+runtime_lab/** text eol=lf
