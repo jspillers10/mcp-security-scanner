@@ -33,6 +33,8 @@ import ast
 import os
 from dataclasses import dataclass, field
 
+from .analyzer import RESOURCE_DECORATOR_NAMES, TOOL_DECORATOR_NAMES
+
 
 @dataclass(frozen=True)
 class ReadinessCheck:
@@ -293,6 +295,112 @@ def _has_auth_hint(name):
     return any(s in lowered for s in AUTH_SUBSTRINGS)
 
 
+def _decorator_name(dec):
+    target = dec.func if isinstance(dec, ast.Call) else dec
+    if isinstance(target, ast.Attribute):
+        return target.attr
+    if isinstance(target, ast.Name):
+        return target.id
+    return None
+
+
+def _is_tool_or_resource_function(node) -> bool:
+    return any(_decorator_name(dec) in TOOL_DECORATOR_NAMES | RESOURCE_DECORATOR_NAMES for dec in node.decorator_list)
+
+
+# Keyword argument names treated as explicit authentication configuration,
+# but only on a small allowlist of recognized MCP server constructors. An
+# `auth=` keyword on requests.get(), httpx.Client(), or an arbitrary
+# application constructor is request/application configuration, not evidence
+# that the MCP transport itself is protected.
+_EXPLICIT_AUTH_KEYWORDS = ("auth", "authentication")
+_FASTMCP_MODULES = {"fastmcp", "mcp.server.fastmcp"}
+_DISABLED_AUTH_NAME_PARTS = ("disabled", "noauth", "no_auth", "anonymous")
+
+
+def _qualified_call_name(func):
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return None
+
+
+def _auth_value_is_enabled(value) -> bool:
+    if isinstance(value, ast.Constant):
+        return value.value not in (None, False, "", 0)
+    if isinstance(value, (ast.List, ast.Tuple, ast.Set, ast.Dict)):
+        return bool(getattr(value, "elts", None) or getattr(value, "keys", None))
+
+    name = None
+    if isinstance(value, ast.Name):
+        name = value.id
+    elif isinstance(value, ast.Call):
+        name = _qualified_call_name(value.func)
+    if name and any(part in name.lower() for part in _DISABLED_AUTH_NAME_PARTS):
+        return False
+    return True
+
+
+def _is_explicitly_disabled_auth_call(call_node) -> bool:
+    name = _qualified_call_name(call_node.func)
+    return bool(name and any(part in name.lower() for part in _DISABLED_AUTH_NAME_PARTS))
+
+
+def _collect_fastmcp_imports(tree):
+    constructor_names = set()
+    module_names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module in _FASTMCP_MODULES:
+            for alias in node.names:
+                if alias.name == "FastMCP":
+                    constructor_names.add(alias.asname or alias.name)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in _FASTMCP_MODULES:
+                    module_names.add(alias.asname or alias.name.split(".")[0])
+    return constructor_names, module_names
+
+
+def _is_recognized_fastmcp_call(call_node, constructor_names, module_names) -> bool:
+    func = call_node.func
+    if isinstance(func, ast.Name):
+        return func.id in constructor_names
+    return (
+        isinstance(func, ast.Attribute)
+        and func.attr == "FastMCP"
+        and isinstance(func.value, ast.Name)
+        and func.value.id in module_names
+    )
+
+
+def _has_explicit_auth_keyword(call_node, constructor_names, module_names) -> bool:
+    if not _is_recognized_fastmcp_call(call_node, constructor_names, module_names):
+        return False
+    for kw in call_node.keywords:
+        if kw.arg in _EXPLICIT_AUTH_KEYWORDS:
+            return _auth_value_is_enabled(kw.value)
+    return False
+
+
+def _collect_calls_in_tool_or_resource_bodies(tree) -> set:
+    """id()s of every Call node inside a tool/resource-decorated
+    function's subtree (including its own decorator_list). Used to
+    exclude those calls from _has_auth_reference's general auth-shaped-
+    call-name scan: a call made as part of one tool's own business logic
+    (e.g. a "check_email" tool calling get_tokens() to look up a stored
+    token) says nothing about whether the transport itself requires
+    authentication -- it's the same category of evidence the module
+    docstring already excludes for docstring text, generalized to
+    business-logic code that happens to run inside a tool/resource body.
+    """
+    excluded: set = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and _is_tool_or_resource_function(node):
+            excluded.update(id(child) for child in ast.walk(node) if isinstance(child, ast.Call))
+    return excluded
+
+
 def _find_transport_setup(tree):
     """Return the line number of the first SSE/HTTP transport setup call
     found, or None. Covers `transport="sse"`/`"streamable-http"`/`"http"`
@@ -320,10 +428,44 @@ def _find_transport_setup(tree):
 
 
 def _has_auth_reference(tree):
-    """True if the file's actual code -- imports, decorators, or call
-    names -- references anything auth-shaped. Deliberately does not look at
+    """True if the file's actual code references something that plausibly
+    gates the transport: an auth-shaped import (anywhere), an auth-shaped
+    decorator on a *non*-tool/resource function (e.g. ASGI middleware
+    setup or a route handler), an auth-shaped call made outside a
+    tool/resource body, or an explicit `auth=`/`authentication=` keyword
+    passed to a call outside a tool/resource body (see
+    _has_explicit_auth_keyword). Deliberately does not look at
     string/docstring contents; see the AUTH_SUBSTRINGS comment for why.
+
+    A tool/resource function's own decorators and the calls inside its
+    body are excluded entirely from this scan -- see
+    _collect_calls_in_tool_or_resource_bodies. Neither is evidence the
+    *transport* is gated: a decorator wrapping one tool proves at most
+    that one tool has some per-call behavior, not that the SSE/HTTP
+    endpoint itself requires authentication before any tool is reachable
+    (an unauthenticated caller can still list tools, or call a different
+    tool that carries no such decorator). This applies regardless of the
+    decorator's name -- an authentication-shaped name like `require_auth`
+    stacked on one tool is exactly as inconclusive as a neutral one like
+    `require_session`, `trace`, or `retry`; none of them can be told apart
+    from a no-op decorator by inspecting only its call site, and treating
+    the decorator's mere presence (or its name) as proof of transport-wide
+    protection is exactly the class of unsound guess this check must not
+    make. A tool literally named "authenticate" (application-level login
+    logic) is likewise excluded via the same tool/resource handling: it is
+    reachable through the same unauthenticated transport as every other
+    tool, not a gate in front of it.
+
+    This means RDY002 currently has **no** static path to recognizing
+    per-tool authorization as protecting the transport -- only module-level
+    evidence (an import, non-tool decorator, non-tool-body call, or an
+    explicit `auth=` constructor keyword) suppresses it. Where a real
+    server genuinely gates every tool through a per-tool mechanism with no
+    module-level trace of it, this check cannot currently tell that apart
+    from an unprotected transport, and reports RDY002 rather than guessing.
     """
+    excluded_calls = _collect_calls_in_tool_or_resource_bodies(tree)
+    fastmcp_constructors, fastmcp_modules = _collect_fastmcp_imports(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -336,17 +478,19 @@ def _has_auth_reference(tree):
                 if _has_auth_hint(alias.name) or _has_auth_hint(alias.asname):
                     return True
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if _is_tool_or_resource_function(node):
+                continue
             for dec in node.decorator_list:
-                target = dec.func if isinstance(dec, ast.Call) else dec
-                dec_name = (
-                    target.attr
-                    if isinstance(target, ast.Attribute)
-                    else (target.id if isinstance(target, ast.Name) else None)
-                )
-                if _has_auth_hint(dec_name):
+                if _has_auth_hint(_decorator_name(dec)):
                     return True
         elif isinstance(node, ast.Call):
+            if id(node) in excluded_calls:
+                continue
+            if _is_explicitly_disabled_auth_call(node):
+                continue
             if _has_auth_hint(_call_name(node.func)):
+                return True
+            if _has_explicit_auth_keyword(node, fastmcp_constructors, fastmcp_modules):
                 return True
     return False
 

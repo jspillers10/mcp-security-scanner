@@ -1,0 +1,346 @@
+{
+  "accuracy": null,
+  "accuracy_note": "Not calculated because the benchmark does not define an exhaustive true-negative universe.",
+  "corpus_id": "dvmcp-79734c19",
+  "excluded_cases": 8,
+  "readiness": {
+    "by_rule": {
+      "RDY001": {
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "precision_ci95_wilson": [
+          0.722467,
+          1.0
+        ],
+        "recall": 1.0,
+        "recall_ci95_wilson": [
+          0.722467,
+          1.0
+        ],
+        "tp": 10
+      },
+      "RDY002": {
+        "f1": 0.888889,
+        "fn": 2,
+        "fp": 0,
+        "precision": 1.0,
+        "precision_ci95_wilson": [
+          0.675592,
+          1.0
+        ],
+        "recall": 0.8,
+        "recall_ci95_wilson": [
+          0.490162,
+          0.943318
+        ],
+        "tp": 8
+      }
+    },
+    "overall": {
+      "f1": 0.947368,
+      "fn": 2,
+      "fp": 0,
+      "precision": 1.0,
+      "precision_ci95_wilson": [
+        0.824121,
+        1.0
+      ],
+      "recall": 0.9,
+      "recall_ci95_wilson": [
+        0.698966,
+        0.972134
+      ],
+      "tp": 18
+    }
+  },
+  "scanner_errors": 0,
+  "schema_version": "1.0",
+  "security": {
+    "by_rule": {
+      "MCP001": {
+        "f1": 0.8,
+        "fn": 1,
+        "fp": 1,
+        "precision": 0.8,
+        "precision_ci95_wilson": [
+          0.375535,
+          0.963776
+        ],
+        "recall": 0.8,
+        "recall_ci95_wilson": [
+          0.375535,
+          0.963776
+        ],
+        "tp": 4
+      },
+      "MCP002": {
+        "f1": 0.833334,
+        "fn": 2,
+        "fp": 0,
+        "precision": 1.0,
+        "precision_ci95_wilson": [
+          0.565518,
+          1.0
+        ],
+        "recall": 0.714286,
+        "recall_ci95_wilson": [
+          0.358934,
+          0.917781
+        ],
+        "tp": 5
+      },
+      "MCP003": {
+        "f1": 0.8,
+        "fn": 0,
+        "fp": 2,
+        "precision": 0.666667,
+        "precision_ci95_wilson": [
+          0.299993,
+          0.903229
+        ],
+        "recall": 1.0,
+        "recall_ci95_wilson": [
+          0.510109,
+          1.0
+        ],
+        "tp": 4
+      },
+      "MCP004": {
+        "f1": 0.533333,
+        "fn": 7,
+        "fp": 0,
+        "precision": 1.0,
+        "precision_ci95_wilson": [
+          0.510109,
+          1.0
+        ],
+        "recall": 0.363636,
+        "recall_ci95_wilson": [
+          0.151665,
+          0.646199
+        ],
+        "tp": 4
+      },
+      "MCP005": {
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "precision_ci95_wilson": [
+          0.675592,
+          1.0
+        ],
+        "recall": 1.0,
+        "recall_ci95_wilson": [
+          0.675592,
+          1.0
+        ],
+        "tp": 8
+      },
+      "MCP006": {
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "precision_ci95_wilson": [
+          0.510109,
+          1.0
+        ],
+        "recall": 1.0,
+        "recall_ci95_wilson": [
+          0.510109,
+          1.0
+        ],
+        "tp": 4
+      },
+      "MCP101": {
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "precision_ci95_wilson": [
+          0.609666,
+          1.0
+        ],
+        "recall": 1.0,
+        "recall_ci95_wilson": [
+          0.609666,
+          1.0
+        ],
+        "tp": 6
+      }
+    },
+    "overall": {
+      "f1": 0.843374,
+      "fn": 10,
+      "fp": 3,
+      "precision": 0.921053,
+      "precision_ci95_wilson": [
+        0.792006,
+        0.972785
+      ],
+      "recall": 0.777778,
+      "recall_ci95_wilson": [
+        0.637307,
+        0.874553
+      ],
+      "tp": 35
+    }
+  },
+  "security_by_group": {
+    "code_vulnerability": {
+      "by_rule": {
+        "MCP001": {
+          "f1": 0.8,
+          "fn": 1,
+          "fp": 1,
+          "precision": 0.8,
+          "precision_ci95_wilson": [
+            0.375535,
+            0.963776
+          ],
+          "recall": 0.8,
+          "recall_ci95_wilson": [
+            0.375535,
+            0.963776
+          ],
+          "tp": 4
+        },
+        "MCP002": {
+          "f1": 0.833334,
+          "fn": 2,
+          "fp": 0,
+          "precision": 1.0,
+          "precision_ci95_wilson": [
+            0.565518,
+            1.0
+          ],
+          "recall": 0.714286,
+          "recall_ci95_wilson": [
+            0.358934,
+            0.917781
+          ],
+          "tp": 5
+        },
+        "MCP003": {
+          "f1": 0.8,
+          "fn": 0,
+          "fp": 2,
+          "precision": 0.666667,
+          "precision_ci95_wilson": [
+            0.299993,
+            0.903229
+          ],
+          "recall": 1.0,
+          "recall_ci95_wilson": [
+            0.510109,
+            1.0
+          ],
+          "tp": 4
+        },
+        "MCP004": {
+          "f1": 0.533333,
+          "fn": 7,
+          "fp": 0,
+          "precision": 1.0,
+          "precision_ci95_wilson": [
+            0.510109,
+            1.0
+          ],
+          "recall": 0.363636,
+          "recall_ci95_wilson": [
+            0.151665,
+            0.646199
+          ],
+          "tp": 4
+        },
+        "MCP005": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "precision_ci95_wilson": [
+            0.675592,
+            1.0
+          ],
+          "recall": 1.0,
+          "recall_ci95_wilson": [
+            0.675592,
+            1.0
+          ],
+          "tp": 8
+        },
+        "MCP006": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "precision_ci95_wilson": [
+            0.510109,
+            1.0
+          ],
+          "recall": 1.0,
+          "recall_ci95_wilson": [
+            0.510109,
+            1.0
+          ],
+          "tp": 4
+        }
+      },
+      "overall": {
+        "f1": 0.816902,
+        "fn": 10,
+        "fp": 3,
+        "precision": 0.90625,
+        "precision_ci95_wilson": [
+          0.757818,
+          0.967598
+        ],
+        "recall": 0.74359,
+        "recall_ci95_wilson": [
+          0.589183,
+          0.854312
+        ],
+        "tp": 29
+      }
+    },
+    "description_vulnerability": {
+      "by_rule": {
+        "MCP101": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "precision_ci95_wilson": [
+            0.609666,
+            1.0
+          ],
+          "recall": 1.0,
+          "recall_ci95_wilson": [
+            0.609666,
+            1.0
+          ],
+          "tp": 6
+        }
+      },
+      "overall": {
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "precision_ci95_wilson": [
+          0.609666,
+          1.0
+        ],
+        "recall": 1.0,
+        "recall_ci95_wilson": [
+          0.609666,
+          1.0
+        ],
+        "tp": 6
+      }
+    }
+  }
+}
