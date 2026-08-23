@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tool-run.schema.json",
+  "title": "Stable static-analysis tool run evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "study_id", "repository_id", "tool", "version", "source_identity", "configuration_sha256", "ruleset_sha256", "arguments", "authorization_state", "execution_state", "subject_code_execution_prohibited", "deployed_system_interaction_prohibited", "exit_status", "file_statuses", "errors"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "study_id": {"type": "string", "minLength": 1},
+    "repository_id": {"type": "string", "minLength": 1},
+    "tool": {"enum": ["mcp-security-scanner", "bandit", "semgrep"]},
+    "version": {"type": ["string", "null"]},
+    "source_identity": {"type": ["string", "null"]},
+    "configuration_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "ruleset_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "arguments": {"type": "array", "items": {"type": "string"}},
+    "authorization_state": {"enum": ["not-authorized", "phase-5b-authorized"]},
+    "execution_state": {"enum": ["not-started", "completed", "failed", "stopped"]},
+    "subject_code_execution_prohibited": {"const": true},
+    "deployed_system_interaction_prohibited": {"const": true},
+    "exit_status": {"type": ["integer", "null"]},
+    "file_statuses": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["path", "status", "error_ids"], "properties": {"path": {"type": "string"}, "status": {"enum": ["pending", "processed", "supported-no-finding", "parse-error", "scan-error", "normalization-error", "tool-error"]}, "error_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}}}},
+    "errors": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["error_id", "category", "path", "redacted_detail"], "properties": {"error_id": {"type": "string"}, "category": {"enum": ["scanner", "parse", "normalization", "tool"]}, "path": {"type": ["string", "null"]}, "redacted_detail": {"type": "string"}}}}
+  }
+}

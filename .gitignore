@@ -12,5 +12,7 @@ dist/
 .venv/
 benchmark/.corpora/
 benchmark/results/
+benchmark/field_validation/quarantine/
+benchmark/field_validation/workspace/
 .tmp-dvmcp-*/
 .claude/settings.local.json

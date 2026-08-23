@@ -14,6 +14,8 @@ This directory contains the Phase 2 static-analysis benchmark. Start with
 - `run.py`: the one-command non-executing benchmark runner
 - `baselines/`: reviewed metric baselines used for regression checks
 - `.corpora/` and `results/`: ignored retrieval and generated evidence directories
+- `field_validation/` and `pilot.py`: Phase 5A non-retrieving pilot infrastructure and
+  operator workflow
 
 ## Quick start
 

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pilot-metrics.schema.json",
+  "title": "Machine-readable pilot measurements without recall or F1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "precision", "repository_analyzability", "comparison_eligible_incremental_signal", "unique_scope_validated_signal", "mapping_outcomes", "review_burden", "outcome_counts", "outcomes_not_reported"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "precision": {"$ref": "#/$defs/ratio"},
+    "repository_analyzability": {"type": "object"},
+    "comparison_eligible_incremental_signal": {"type": "object"},
+    "unique_scope_validated_signal": {"type": "object"},
+    "mapping_outcomes": {"type": "object"},
+    "review_burden": {"type": "object"},
+    "outcome_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "outcomes_not_reported": {"const": ["recall", "f1"]}
+  },
+  "$defs": {"ratio": {"type": "object"}}
+}

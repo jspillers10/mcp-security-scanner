@@ -1,0 +1,51 @@
+{
+  "authorization_state": "infrastructure-only",
+  "claim_mappings": [],
+  "phase": "pilot",
+  "repositories": [],
+  "safety_boundary": {
+    "deployed_system_interaction_prohibited": true,
+    "subject_code_build_prohibited": true,
+    "subject_code_execution_prohibited": true,
+    "subject_code_import_prohibited": true,
+    "subject_code_installation_prohibited": true,
+    "subject_code_launch_prohibited": true
+  },
+  "schema_version": "1.0",
+  "selection": {
+    "algorithm": "sha256-ranked-stratified-round-robin-v1",
+    "candidate_register_sha256": null,
+    "seed": "phase5-pilot-selection-v1-20260823",
+    "selected_candidate_ids": []
+  },
+  "study_id": "phase5-pilot",
+  "tools": [
+    {
+      "argument_list_template": null,
+      "configuration_sha256": null,
+      "execution_authorization_state": "not-authorized",
+      "ruleset_sha256": null,
+      "source_identity": null,
+      "tool": "mcp-security-scanner",
+      "version": null
+    },
+    {
+      "argument_list_template": null,
+      "configuration_sha256": null,
+      "execution_authorization_state": "not-authorized",
+      "ruleset_sha256": null,
+      "source_identity": null,
+      "tool": "bandit",
+      "version": null
+    },
+    {
+      "argument_list_template": null,
+      "configuration_sha256": null,
+      "execution_authorization_state": "not-authorized",
+      "ruleset_sha256": null,
+      "source_identity": null,
+      "tool": "semgrep",
+      "version": null
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "adjudication.schema.json",
+  "title": "Immutable field-validation adjudication round",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "study_id", "round_id", "round_sequence", "supersedes", "inventory_sha256", "records"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "study_id": {"type": "string", "minLength": 1},
+    "round_id": {"type": "string", "minLength": 1},
+    "round_sequence": {"type": "integer", "minimum": 1},
+    "supersedes": {"type": ["string", "null"]},
+    "inventory_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["record_id", "case_id", "finding_id", "tool", "outcome", "rationale", "review_record_ids", "disagreement_state", "resolution_method", "disclosure_status"],
+        "properties": {
+          "record_id": {"type": "string", "minLength": 1},
+          "case_id": {"type": ["string", "null"]},
+          "finding_id": {"type": ["string", "null"]},
+          "tool": {"enum": ["mcp-security-scanner", "bandit", "semgrep"]},
+          "outcome": {"enum": ["TP", "FP", "FN", "disputed", "unsupported", "excluded", "scanner-error", "rule-not-applicable", "tool-error", "applicable-rule-missed-case"]},
+          "rationale": {"type": "string"},
+          "review_record_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "disagreement_state": {"enum": ["none", "resolved", "unresolved"]},
+          "resolution_method": {"enum": ["not-needed", "discussion", "third-reviewer", "unresolved"]},
+          "disclosure_status": {"enum": ["not-applicable", "pending", "private-report-prepared", "resolved", "withheld"]}
+        }
+      }
+    }
+  }
+}

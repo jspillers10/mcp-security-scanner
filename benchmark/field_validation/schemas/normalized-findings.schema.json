@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "normalized-findings.schema.json",
+  "title": "Redacted normalized field-validation findings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tool", "repository_id", "findings"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "tool": {"enum": ["mcp-security-scanner", "bandit", "semgrep"]},
+    "repository_id": {"type": "string", "minLength": 1},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["finding_id", "physical_identity", "occurrence", "tool", "repository_id", "tool_rule_id", "claim_class", "path", "line", "redacted_message"],
+        "properties": {
+          "finding_id": {"type": "string", "pattern": "^finding-[a-f0-9]{16}$"},
+          "physical_identity": {"type": "string", "pattern": "^physical-[a-f0-9]{16}$"},
+          "occurrence": {"type": "integer", "minimum": 1},
+          "tool": {"enum": ["mcp-security-scanner", "bandit", "semgrep"]},
+          "repository_id": {"type": "string", "minLength": 1},
+          "tool_rule_id": {"type": "string", "minLength": 1},
+          "claim_class": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "line": {"type": "integer", "minimum": 1},
+          "context": {"type": ["string", "null"]},
+          "severity": {"type": ["string", "null"]},
+          "redacted_message": {"type": "string"}
+        }
+      }
+    }
+  }
+}
