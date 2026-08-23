@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reviewer-packet.schema.json",
+  "title": "Blind reviewer-visible packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "blind", "item_count", "items"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "blind": {"const": true},
+    "item_count": {"type": "integer", "minimum": 0},
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["review_item_id", "repository_id", "commit", "file", "source_region", "security_claim", "threat_model_assumptions", "blind_decision", "blind_rationale"],
+        "properties": {
+          "review_item_id": {"type": "string", "minLength": 1},
+          "repository_id": {"type": "string", "minLength": 1},
+          "commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+          "file": {"type": "string", "minLength": 1},
+          "source_region": {"type": "string", "minLength": 1},
+          "security_claim": {"type": "string", "minLength": 1},
+          "threat_model_assumptions": {"type": "string", "minLength": 1},
+          "blind_decision": {"type": "null"},
+          "blind_rationale": {"const": ""}
+        }
+      }
+    }
+  }
+}

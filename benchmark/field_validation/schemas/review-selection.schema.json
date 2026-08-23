@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "review-selection.schema.json",
+  "title": "Administrative external-review selection record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "selection_state", "seed", "algorithm", "eligible_case_count", "mandatory_unique_case_count", "random_case_count", "zero_finding_repository_count", "members"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "selection_state": {"enum": ["draft", "frozen"]},
+    "seed": {"type": "string", "minLength": 1},
+    "algorithm": {"const": "mandatory-set-plus-sha256-stratified-random-v1"},
+    "eligible_case_count": {"type": "integer", "minimum": 0},
+    "mandatory_unique_case_count": {"type": "integer", "minimum": 0},
+    "random_case_count": {"type": "integer", "minimum": 0},
+    "zero_finding_repository_count": {"type": "integer", "minimum": 0},
+    "members": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["review_item_id", "member_kind", "case_id", "source_sample_id", "repository_id", "selection_reasons"],
+        "properties": {
+          "review_item_id": {"type": "string", "minLength": 1},
+          "member_kind": {"enum": ["case", "zero-finding-source"]},
+          "case_id": {"type": ["string", "null"]},
+          "source_sample_id": {"type": ["string", "null"]},
+          "repository_id": {"type": "string", "minLength": 1},
+          "selection_reasons": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "comparison_eligible_incremental_signal": {},
+  "mapping_outcomes": {},
+  "outcome_counts": {},
+  "outcomes_not_reported": ["recall", "f1"],
+  "precision": {},
+  "repository_analyzability": {},
+  "review_burden": {},
+  "schema_version": "1.0",
+  "unique_scope_validated_signal": {}
+}

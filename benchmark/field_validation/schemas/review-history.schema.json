@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "review-history.schema.json",
+  "title": "Immutable individual reviewer decisions",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "study_id", "round_id", "round_sequence", "supersedes", "reviews"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "study_id": {"type": "string", "minLength": 1},
+    "round_id": {"type": "string", "minLength": 1},
+    "round_sequence": {"type": "integer", "minimum": 1},
+    "supersedes": {"type": ["string", "null"]},
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["review_record_id", "review_item_id", "reviewer_role_id", "review_date", "confidence", "initial_blind_decision", "initial_blind_rationale", "output_aware_decision", "output_aware_rationale", "decision_changed", "disagreement_state", "resolution_method", "third_reviewer_role_id", "third_reviewer_decision", "third_reviewer_rationale"],
+        "properties": {
+          "review_record_id": {"type": "string", "minLength": 1},
+          "review_item_id": {"type": "string", "minLength": 1},
+          "reviewer_role_id": {"type": "string", "minLength": 1},
+          "review_date": {"type": "string", "format": "date"},
+          "confidence": {"enum": ["low", "medium", "high"]},
+          "initial_blind_decision": {"type": "string", "minLength": 1},
+          "initial_blind_rationale": {"type": "string", "minLength": 1},
+          "output_aware_decision": {"type": ["string", "null"]},
+          "output_aware_rationale": {"type": "string"},
+          "decision_changed": {"type": "boolean"},
+          "disagreement_state": {"enum": ["none", "resolved", "unresolved"]},
+          "resolution_method": {"enum": ["not-needed", "discussion", "third-reviewer", "unresolved"]},
+          "third_reviewer_role_id": {"type": ["string", "null"]},
+          "third_reviewer_decision": {"type": ["string", "null"]},
+          "third_reviewer_rationale": {"type": "string"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "candidate-register.schema.json",
+  "title": "Field-validation candidate register",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "study_id", "discovery_frozen", "queries", "candidates"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "study_id": {"type": "string", "minLength": 1},
+    "discovery_frozen": {"type": "boolean"},
+    "queries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["query_id", "service", "query", "run_date", "result_limit", "ordering"],
+        "properties": {
+          "query_id": {"type": "string", "minLength": 1},
+          "service": {"type": "string", "minLength": 1},
+          "query": {"type": "string", "minLength": 1},
+          "run_date": {"type": "string", "format": "date"},
+          "result_limit": {"type": "integer", "minimum": 1},
+          "ordering": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/candidate"}
+    }
+  },
+  "$defs": {
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id", "repository_url", "discovery_query_ids", "lineage_id", "lineage_role",
+        "duplicate_of", "screening_status", "screening_reason", "license", "strata",
+        "intentionally_vulnerable_training", "used_for_scanner_development"
+      ],
+      "properties": {
+        "candidate_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$"},
+        "repository_url": {"type": "string", "pattern": "^https://"},
+        "discovery_query_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "lineage_id": {"type": "string", "minLength": 1},
+        "lineage_role": {"enum": ["canonical", "duplicate"]},
+        "duplicate_of": {"type": ["string", "null"]},
+        "screening_status": {"enum": ["pending", "included", "excluded", "duplicate", "pilot"]},
+        "screening_reason": {"type": "string"},
+        "intentionally_vulnerable_training": {"type": "boolean"},
+        "used_for_scanner_development": {"type": "boolean"},
+        "license": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["declared", "status", "source", "license_file_present"],
+          "properties": {
+            "declared": {"type": ["string", "null"]},
+            "status": {"enum": ["pending", "compatible", "ambiguous", "incompatible"]},
+            "source": {"type": ["string", "null"]},
+            "license_file_present": {"type": ["boolean", "null"]}
+          }
+        },
+        "strata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["framework", "maintenance", "size_band", "popularity_band", "application_type"],
+          "properties": {
+            "framework": {"type": "string", "minLength": 1},
+            "maintenance": {"enum": ["active", "archived", "unknown"]},
+            "size_band": {"type": "string", "minLength": 1},
+            "popularity_band": {"type": "string", "minLength": 1},
+            "application_type": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    }
+  }
+}

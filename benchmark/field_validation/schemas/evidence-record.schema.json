@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence-record.schema.json",
+  "title": "Quarantined and redacted evidence handling record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evidence_id", "run_id", "raw_output", "redactions", "normalized_artifact_sha256", "stable_evidence", "volatile_metadata"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "evidence_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "raw_output": {"type": "object", "additionalProperties": false, "required": ["sha256", "tracked", "quarantine_location_record", "access_restriction_verified", "handling_status"], "properties": {"sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}, "tracked": {"const": false}, "quarantine_location_record": {"type": ["string", "null"]}, "access_restriction_verified": {"type": "boolean"}, "handling_status": {"enum": ["not-created", "quarantined", "screened", "withheld", "destroyed-under-policy"]}}},
+    "redactions": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["redaction_id", "field", "reason"], "properties": {"redaction_id": {"type": "string"}, "field": {"type": "string"}, "reason": {"type": "string", "minLength": 1}}}},
+    "normalized_artifact_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "stable_evidence": {"type": "object"},
+    "volatile_metadata": {"type": "object", "description": "Environment and timing data excluded from deterministic evidence hashes."}
+  }
+}

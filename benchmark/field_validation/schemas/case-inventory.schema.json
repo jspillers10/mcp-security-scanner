@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "case-inventory.schema.json",
+  "title": "Pre-output field-validation case inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "study_id", "corpus_id", "inventory_state", "checklist_version", "cases"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "study_id": {"type": "string", "minLength": 1},
+    "corpus_id": {"type": "string", "minLength": 1},
+    "inventory_state": {"enum": ["draft", "frozen-pre-output"]},
+    "checklist_version": {"type": "string", "minLength": 1},
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["case_id", "study_id", "corpus_id", "repository_id", "commit", "file", "location", "context", "source_region", "claim_class", "applicable_tool_rules", "source", "sink", "attack_preconditions", "relevant_control", "security_claim", "threat_model_assumptions", "proposed_expected_state", "metric_group", "matching", "disclosure_status"],
+        "properties": {
+          "case_id": {"type": "string", "minLength": 1},
+          "study_id": {"type": "string", "minLength": 1},
+          "corpus_id": {"type": "string", "minLength": 1},
+          "repository_id": {"type": "string", "minLength": 1},
+          "commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+          "file": {"type": "string", "pattern": "^[^/].*\\.py$"},
+          "location": {"type": "object", "additionalProperties": false, "required": ["start_line", "end_line"], "properties": {"start_line": {"type": "integer", "minimum": 1}, "end_line": {"type": "integer", "minimum": 1}}},
+          "context": {"type": "object", "additionalProperties": false, "required": ["kind", "name"], "properties": {"kind": {"enum": ["function", "tool", "resource", "registration", "repository"]}, "name": {"type": ["string", "null"]}}},
+          "source_region": {"type": "string"},
+          "claim_class": {"type": "string", "minLength": 1},
+          "applicable_tool_rules": {"type": "object", "additionalProperties": false, "required": ["mcp_security_scanner", "bandit", "semgrep"], "properties": {"mcp_security_scanner": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "bandit": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "semgrep": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}}},
+          "source": {"type": "string", "minLength": 1},
+          "sink": {"type": "string", "minLength": 1},
+          "attack_preconditions": {"type": "string", "minLength": 1},
+          "relevant_control": {"type": ["string", "null"]},
+          "security_claim": {"type": "string", "minLength": 1},
+          "threat_model_assumptions": {"type": "string", "minLength": 1},
+          "proposed_expected_state": {"enum": ["positive", "safe", "unsupported"]},
+          "metric_group": {"enum": ["security", "readiness", "excluded"]},
+          "matching": {"type": "object", "additionalProperties": false, "required": ["mode", "line_tolerance"], "properties": {"mode": {"enum": ["exact", "line-tolerant"]}, "line_tolerance": {"type": "integer", "minimum": 0}}},
+          "disclosure_status": {"enum": ["not-applicable", "pending", "private-report-prepared", "resolved", "withheld"]}
+        }
+      }
+    }
+  }
+}

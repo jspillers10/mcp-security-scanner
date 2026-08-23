@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pilot-manifest.schema.json",
+  "title": "Field-validation pilot manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "study_id", "phase", "authorization_state", "safety_boundary", "selection", "repositories", "tools", "claim_mappings"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "study_id": {"type": "string", "minLength": 1},
+    "phase": {"const": "pilot"},
+    "authorization_state": {"enum": ["infrastructure-only", "phase-5b-authorized"]},
+    "safety_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_code_installation_prohibited", "subject_code_import_prohibited", "subject_code_build_prohibited", "subject_code_execution_prohibited", "subject_code_launch_prohibited", "deployed_system_interaction_prohibited"],
+      "properties": {
+        "subject_code_installation_prohibited": {"const": true},
+        "subject_code_import_prohibited": {"const": true},
+        "subject_code_build_prohibited": {"const": true},
+        "subject_code_execution_prohibited": {"const": true},
+        "subject_code_launch_prohibited": {"const": true},
+        "deployed_system_interaction_prohibited": {"const": true}
+      }
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seed", "algorithm", "candidate_register_sha256", "selected_candidate_ids"],
+      "properties": {
+        "seed": {"type": "string", "minLength": 1},
+        "algorithm": {"const": "sha256-ranked-stratified-round-robin-v1"},
+        "candidate_register_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "selected_candidate_ids": {"type": "array", "items": {"type": "string"}, "maxItems": 3, "uniqueItems": true}
+      }
+    },
+    "repositories": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/repository"}
+    },
+    "tools": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/tool"}
+    },
+    "claim_mappings": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/mapping"}
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes", "encoding", "python_lines", "source_status", "scanner_status", "failure_reason"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^[^/].*\\.py$"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "bytes": {"type": "integer", "minimum": 0},
+        "encoding": {"type": ["string", "null"]},
+        "python_lines": {"type": ["integer", "null"], "minimum": 0},
+        "source_status": {"enum": ["ready", "encoding-error"]},
+        "scanner_status": {"enum": ["pending", "not-presented", "result", "supported-no-finding", "parse-error", "scan-error"]},
+        "failure_reason": {"type": ["string", "null"]}
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_id", "candidate_id", "repository_url", "commit", "license", "scope_note", "files", "scoped_tree_sha256", "scoped_python_lines"],
+      "properties": {
+        "repository_id": {"type": "string", "minLength": 1},
+        "candidate_id": {"type": "string", "minLength": 1},
+        "repository_url": {"type": "string", "pattern": "^https://"},
+        "commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "license": {"type": "object"},
+        "scope_note": {"type": "string", "minLength": 1},
+        "files": {"type": "array", "items": {"$ref": "#/$defs/file"}, "uniqueItems": true},
+        "scoped_tree_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "scoped_python_lines": {"type": "integer", "minimum": 0},
+        "unhandled_error": {"type": ["string", "null"]}
+      }
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "version", "source_identity", "configuration_sha256", "ruleset_sha256", "argument_list_template", "execution_authorization_state"],
+      "properties": {
+        "tool": {"enum": ["mcp-security-scanner", "bandit", "semgrep"]},
+        "version": {"type": ["string", "null"]},
+        "source_identity": {"type": ["string", "null"]},
+        "configuration_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "ruleset_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "argument_list_template": {"type": ["array", "null"], "items": {"type": "string"}},
+        "execution_authorization_state": {"enum": ["not-authorized", "phase-5b-authorized"]}
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_class", "mcp_rule_ids", "bandit_rule_ids", "semgrep_rule_ids", "comparison_status", "rationale"],
+      "properties": {
+        "claim_class": {"type": "string", "minLength": 1},
+        "mcp_rule_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "bandit_rule_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "semgrep_rule_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "comparison_status": {"enum": ["pending", "comparison-eligible", "unique-scope", "unsupported"]},
+        "rationale": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
